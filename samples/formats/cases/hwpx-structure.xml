@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hs:sec xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section" xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph">
+  <hp:p id="100"><hp:run charPrIDRef="0">
+    <hp:t xml:space="preserve"> 앞😀 <hp:tab/>뒤<hp:lineBreak/>끝</hp:t>
+    <hp:tbl rowCnt="1" colCnt="1"><hp:tr><hp:tc>
+      <hp:subList><hp:p id="101"><hp:run>
+        <hp:t>바깥 셀 앞</hp:t>
+        <hp:tbl rowCnt="1" colCnt="1"><hp:tr><hp:tc><hp:subList>
+          <hp:p id="102"><hp:run><hp:t>중첩 셀</hp:t></hp:run></hp:p>
+        </hp:subList></hp:tc></hp:tr></hp:tbl>
+        <hp:t>바깥 셀 뒤</hp:t>
+      </hp:run></hp:p></hp:subList>
+    </hp:tc></hp:tr></hp:tbl>
+    <hp:t>표 뒤</hp:t>
+    <hp:ctrl><hp:footNote number="1" instId="1001"><hp:subList>
+      <hp:p id="103"><hp:run><hp:t>각주 문장</hp:t></hp:run></hp:p>
+    </hp:subList></hp:footNote></hp:ctrl>
+    <hp:t>각주 뒤</hp:t>
+    <hp:ctrl><hp:header applyPageType="BOTH"><hp:subList>
+      <hp:p id="104"><hp:run><hp:t>머리말 문장</hp:t></hp:run></hp:p>
+    </hp:subList></hp:header></hp:ctrl>
+    <hp:ctrl><hp:footer applyPageType="BOTH"><hp:subList>
+      <hp:p id="105"><hp:run><hp:t>꼬리말 문장</hp:t></hp:run></hp:p>
+    </hp:subList></hp:footer></hp:ctrl>
+    <hp:t>마지막 본문</hp:t>
+  </hp:run></hp:p>
+</hs:sec>

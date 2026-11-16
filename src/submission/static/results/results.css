@@ -1,0 +1,56 @@
+:root { --results-list-width:15rem; --results-detail-width:23rem; }
+.skip-link { display:inline-flex; align-items:center; min-height:var(--target); }
+.results-showcase { max-width:var(--page-max); padding:var(--s6); margin:auto; }
+.results-showcase-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--s6); }
+.result-row strong { font-size:var(--text-base); }
+.attention-label { color:var(--danger); font-weight:600; font-size:var(--text-sm); }
+.page-toolbar { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:var(--s2); align-items:end; }
+.page-toolbar .button { padding-inline:var(--s3); }
+.result-notice { display:flex; flex-direction:column; align-items:flex-start; gap:var(--s3); }
+.results-shell { height:100dvh; max-width:var(--page-max); margin:auto; display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; }
+.results-shell h1,.results-shell h2,.results-shell h3,.results-shell strong { min-width:0; max-width:100%; word-break:keep-all; overflow-wrap:anywhere; }
+.results-header { display:flex; align-items:center; gap:var(--s4); padding:var(--s3) var(--s6); border-bottom:var(--line-width) solid var(--line); background:var(--surface); }
+.results-header a { min-height:var(--target); display:inline-flex; align-items:center; font-size:var(--text-sm); }
+.results-header .results-wordmark { font-size:var(--text-lg); font-weight:700; text-decoration:none; color:var(--ink); }
+.results-context { padding:var(--s5) var(--s6); gap:var(--s3); }
+.case-bar { display:grid; grid-template-columns:var(--results-list-width) minmax(0,1fr); gap:var(--s5); align-items:start; }
+.case-summary { gap:var(--s1); }
+.results-workspace { display:grid; grid-template-columns:var(--results-list-width) var(--results-detail-width) minmax(0,1fr); gap:var(--s4); min-height:0; padding:0 var(--s6) var(--s4); }
+.results-pane { min-width:0; min-height:0; overflow-y:auto; scrollbar-gutter:stable; }
+.results-footer { padding:var(--s3) var(--s6); border-top:var(--line-width) solid var(--line); color:var(--muted); font-size:var(--text-sm); }
+.result-detail .panel,.result-viewer .panel { padding:var(--s4); }
+.result-picker { display:none; }
+.result-section { border-top:var(--line-width) solid var(--line); padding-top:var(--s4); }
+.result-definition { display:grid; grid-template-columns:auto minmax(0,1fr); gap:var(--s2) var(--s4); margin:0; }
+.result-definition dt { color:var(--muted); font-size:var(--text-sm); }
+.result-definition dd { margin:0; }
+.evidence-action { text-align:left; width:100%; font-weight:400; }
+.evidence-action .original-text { font-size:var(--text-sm); }
+.viewer-toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:var(--s3); align-items:end; }
+.original-link { display:inline-flex; min-height:var(--target); align-items:center; font-size:var(--text-sm); }
+.pdf-figure { margin:0; }
+.pdf-frame { position:relative; width:100%; border:var(--line-width) solid var(--line); }
+.pdf-image { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:contain; }
+.pdf-state { position:absolute; inset:0; padding:var(--s4); }
+.pdf-state:empty { display:none; }
+.pdf-figure figcaption { margin-top:var(--s2); color:var(--muted); font-size:var(--text-sm); word-break:keep-all; overflow-wrap:anywhere; }
+.text-block { border-top:var(--line-width) solid var(--line); padding-top:var(--s3); }
+.text-block:first-of-type { border-top:0; }
+.result-detail h2 { overflow-wrap:anywhere; }
+@media(max-width:1099px) {
+  .results-shell { height:auto; min-height:100dvh; display:block; }
+  .results-workspace { display:flex; flex-direction:column; }
+  .results-pane { overflow:visible; scrollbar-gutter:auto; }
+  .result-list { display:none; }
+  .result-picker { display:block; margin-bottom:var(--s4); }
+}
+@media(max-width:600px) {
+  .results-header,.results-context,.results-footer { padding:var(--s4); }
+  .results-workspace { padding:0 var(--s4) var(--s4); }
+  .results-header { gap:var(--s2); }
+  .case-bar { grid-template-columns:minmax(0,1fr); gap:var(--s3); }
+  .viewer-toolbar { grid-template-columns:minmax(0,1fr); gap:var(--s2); }
+}
+@media(max-width:1099px) { .results-showcase-grid { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:600px) { .results-showcase { padding:var(--s4); } }
+/* UNI-IP stat tiles: Critical = ink tile with chrome orb, Default = gray card, Attention = aurora border. */

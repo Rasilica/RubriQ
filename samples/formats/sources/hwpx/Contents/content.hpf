@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<opf:package xmlns:opf="http://www.idpf.org/2007/opf/" version="3.0" unique-identifier="fixture-id">
+  <opf:metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="fixture-id">format-boundary-001-hwpx</dc:identifier><dc:title>합성 구역 순서 자료</dc:title><dc:language>ko</dc:language></opf:metadata>
+  <opf:manifest>
+    <opf:item id="header" href="Contents/header.xml" media-type="application/xml"/>
+    <opf:item id="section0" href="Contents/section0.xml" media-type="application/xml"/>
+    <opf:item id="section1" href="Contents/section1.xml" media-type="application/xml"/>
+  </opf:manifest>
+  <opf:spine><opf:itemref idref="header" linear="yes"/><opf:itemref idref="section1" linear="yes"/><opf:itemref idref="section0" linear="yes"/></opf:spine>
+</opf:package>

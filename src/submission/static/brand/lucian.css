@@ -1,0 +1,94 @@
+/* Lucian UX/UI Prompt #032 #039 #070 #079 #098 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/ */
+/* --ux-* tokens mapped to the RubriQ/UNI-IP theme so both color schemes follow tokens.css. */
+.ux{
+  --ux-page:var(--canvas);--ux-surface:var(--surface);--ux-surface-2:var(--wash);--ux-surface-3:var(--wash-strong);
+  --ux-ink:var(--ink);--ux-ink-2:var(--ink-2);--ux-ink-3:var(--muted);--ux-line:var(--line);--ux-line-2:var(--control-line);
+  --ux-accent:var(--focus);--ux-accent-ink:var(--on-accent);--ux-mint:var(--chip-success-ink);--ux-warn:var(--chip-progress-ink);
+  --ux-danger:var(--danger);--ux-shadow:rgb(0 0 0 / .08);--ux-shadow-strong:rgb(0 0 0 / .22);
+  --ux-ease:cubic-bezier(.2,.8,.2,1);--ux-spring:cubic-bezier(.34,1.45,.64,1);
+}
+.ux,.ux *,.ux *::before,.ux *::after{box-sizing:border-box}
+.ux{color:var(--ux-ink);-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+.ux :focus-visible{outline:2px solid var(--ux-accent);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.ux,.ux *,.ux *::before,.ux *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important;}}
+
+/* #039 Sliding pill tabs */
+.u039-tabs{position:relative;display:flex;padding:5px;border-radius:999px;background:var(--ux-surface);box-shadow:0 0 0 1px var(--ux-line)}
+.u039-pill{position:absolute;left:0;top:5px;bottom:5px;width:var(--w,80px);border-radius:999px;background:var(--ux-ink);transform:translateX(var(--x,5px));box-shadow:0 8px 16px -10px var(--ux-shadow-strong);transition:transform .5s var(--ux-spring),width .5s var(--ux-spring)}
+.u039-tab{position:relative;flex:1;height:42px;border:0;padding:0;border-radius:999px;background:none;font-size:14px;font-weight:680;color:var(--ux-ink-2);white-space:nowrap;transition:color .35s var(--ux-ease)}
+.u039-tab[aria-selected="true"]{color:var(--ux-page)}
+.u039-tab:focus-visible{outline:2px solid var(--ux-accent);outline-offset:2px}
+
+/* RubriQ palette: sky pill with deep-navy label, sky upload orb. */
+.u039-pill{background:var(--accent)}
+.u039-tab[aria-selected="true"]{color:var(--on-accent)}
+
+/* #070 Stacking toasts (fixed to the viewport corner; only toasts take pointer input) */
+.u070{position:fixed;right:24px;bottom:24px;z-index:40;width:min(350px,calc(100% - 32px));height:0;pointer-events:none}
+.u070-zone{position:absolute;left:0;right:0;bottom:0;height:0;outline:none}
+.u070-t{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:12px;min-height:68px;padding:12px 12px 12px 14px;border-radius:20px;background:var(--ux-surface);box-shadow:0 0 0 1px var(--ux-line),0 16px 30px -18px var(--ux-shadow-strong);transform-origin:50% 100%;transform:translate(var(--dx,0px),var(--y,0px)) scale(var(--s,1));opacity:var(--o,1);transition:transform .5s var(--ux-spring),opacity .35s;touch-action:pan-y;user-select:none;-webkit-user-select:none;pointer-events:auto}
+.u070-t.drag{transition:none}
+.u070-t.enter{transform:translateY(90px) scale(.9);opacity:0}
+.u070-t.leave{transform:translate(var(--dx,0px),var(--y,0px)) scale(var(--s,1));opacity:0;pointer-events:none}
+.u070-t.leave.side{transform:translate(calc(var(--dir,1) * 420px),var(--y,0px)) rotate(calc(var(--dir,1) * 8deg))}
+.u070-t>*{transition:opacity .25s}
+.u070-t.back>*{opacity:0}
+.u070-ic{width:36px;height:36px;flex:none;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c)}
+.u070-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.u070-tx{flex:1;min-width:0}
+.u070-tx b{display:block;font-size:14px;font-weight:780;letter-spacing:-.02em}
+.u070-tx small{display:block;margin-top:2px;font-size:12.5px;font-weight:600;color:var(--ux-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.u070-x{width:30px;height:30px;flex:none;border:0;padding:0;border-radius:50%;display:grid;place-items:center;background:none;color:var(--ux-ink-3)}
+.u070-x:hover{background:var(--ux-surface-2);color:var(--ux-ink)}
+.u070-x svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+.u070-x:focus-visible{outline:2px solid var(--ux-accent);outline-offset:1px}
+.u070-bar{position:absolute;left:16px;right:16px;bottom:0;height:2px;border-radius:2px;background:var(--c);opacity:.5;transform-origin:0 50%;transform:scaleX(var(--left,1))}
+.u070-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* #032 Drag-and-drop upload (zone + selected file row) */
+.u032{position:relative}
+.u032-zone{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:168px;border:0;padding:16px;border-radius:26px;background:var(--ux-surface);color:var(--ux-ink);cursor:pointer;
+  transition:transform .5s var(--ux-spring),background-color .3s var(--ux-ease)}
+.u032-zone:focus-visible{outline:2px solid var(--ux-accent);outline-offset:4px}
+.u032-zone svg.u032-dash{position:absolute;left:1px;top:1px;width:calc(100% - 2px);height:calc(100% - 2px);overflow:visible;pointer-events:none}
+.u032-dash rect{fill:none;stroke:var(--ux-line-2);stroke-width:2;stroke-dasharray:8 7;transition:stroke .3s var(--ux-ease)}
+.u032-zone:hover .u032-dash rect,.u032.is-over .u032-dash rect{stroke:var(--ux-accent);animation:u032-march .9s linear infinite}
+@keyframes u032-march{to{stroke-dashoffset:-30}}
+.u032.is-over .u032-zone{transform:scale(1.03);background:color-mix(in srgb,var(--ux-accent) 7%,var(--ux-surface))}
+.u032-orb{width:60px;height:60px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(140deg,#5B8CFF,#8B6CFF);box-shadow:0 16px 28px -14px rgba(91,108,255,.8);transition:transform .5s var(--ux-spring)}
+.u032-orb svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.u032-zone:hover .u032-orb{transform:translateY(-4px)}
+.u032.is-over .u032-orb{transform:translateY(-8px) scale(1.1) rotate(-6deg)}
+.u032-zone b{margin-top:14px;font-size:15.5px;font-weight:720;letter-spacing:-.02em}
+.u032-zone b em{font-style:normal;color:var(--ux-accent)}
+.u032-zone small{margin-top:4px;font-size:12.5px;color:var(--ux-ink-3)}
+.u032-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.u032-row{position:relative;display:flex;align-items:center;gap:12px;min-height:62px;margin-top:8px;padding:0 12px;border-radius:18px;background:var(--ux-surface);box-shadow:0 0 0 1px var(--ux-line);overflow:hidden;animation:u032-in .5s var(--ux-spring)}
+@keyframes u032-in{from{transform:translateY(-10px) scale(.96);opacity:0}}
+.u032-meta{flex:1;min-width:0}
+.u032-meta b{display:block;font-size:14px;font-weight:660;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.u032-meta small{display:block;margin-top:3px;font-size:12px;color:var(--ux-ink-3);font-variant-numeric:tabular-nums}
+.u032-st{width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center}
+.u032-st svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.u032-row.done .u032-st{background:var(--ux-mint);color:var(--ux-accent-ink);animation:u032-pop .45s var(--ux-spring)}
+@keyframes u032-pop{from{transform:scale(.3)}}
+.u032-row.done .u032-st path{stroke-dasharray:16;stroke-dashoffset:16;animation:u032-draw .4s var(--ux-ease) .15s forwards}
+@keyframes u032-draw{to{stroke-dashoffset:0}}
+.u032-row.fail .u032-meta small{color:var(--ux-danger)}
+
+/* #079 Skeleton that blooms into content */
+.u079-s{position:relative;overflow:hidden}
+.u079-sk{position:absolute;inset:0;border-radius:inherit;animation:u079-shine 1.6s linear infinite;transition:opacity .45s var(--ux-ease);background:linear-gradient(100deg,transparent 28%,color-mix(in srgb,var(--ux-surface-3),var(--ux-ink) 7%) 45%,transparent 62%) var(--sx,0) 0/var(--sw,700px) 100% no-repeat,var(--ux-surface-2)}
+@keyframes u079-shine{from{background-position:calc(var(--sx,0px) - 700px) 0,0 0}to{background-position:calc(var(--sx,0px) + 700px) 0,0 0}}
+.u079-r{opacity:0;transform:translateY(6px);transition:opacity .5s var(--ux-ease),transform .6s var(--ux-spring)}
+.u079.is-done .u079-r{opacity:1;transform:none;transition-delay:var(--d)}
+.u079-line{height:12px;border-radius:6px;margin-bottom:9px}
+.u079-block{height:256px;border-radius:20px;margin-block:14px}
+
+/* #098 Rolling digits */
+.u098-num{display:inline-flex;align-items:baseline;overflow:hidden;height:var(--digit,44px);line-height:var(--digit,44px)}
+.u098-col{display:flex;flex-direction:column;transform:translateY(calc(var(--d) * var(--digit,44px) * -1));transition:transform .9s cubic-bezier(.3,1.25,.5,1);transition-delay:calc(var(--i) * 45ms)}
+.u098-col span{display:block;height:var(--digit,44px)}
+
+/* RubriQ palette for the #032 upload orb (after the ported rule so it wins). */
+.u032-orb{background:var(--accent-gradient);color:var(--on-accent);box-shadow:0 16px 28px -14px rgba(26,181,255,.8)}

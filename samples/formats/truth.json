@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "purpose": "authored_container_and_locator_expectations_not_semantic_evaluation",
+  "human_review_completed": false,
+  "independent_evaluation": false,
+  "namespaces": {
+    "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    "hs": "http://www.hancom.co.kr/hwpml/2011/section",
+    "hp": "http://www.hancom.co.kr/hwpml/2011/paragraph"
+  },
+  "documents": [
+    {
+      "id": "pdf-baseline",
+      "path": "../pdf/guide.pdf",
+      "sha256": "488417203dac14c1ba0630d67ecf78f44451625564f960e12154fa1b08f13127",
+      "family_id": "before-submit-development-001",
+      "page_count": 2,
+      "cases": [
+        {
+          "kind": "body",
+          "locator": {"original_page": 1},
+          "expected_text": "해결할 문제와 대상 사용자를 모두 설명해야 합니다."
+        }
+      ]
+    },
+    {
+      "id": "docx-boundary",
+      "path": "boundary.docx",
+      "sha256": "0ae5c18880f328e11af79b6df953a03dccf1226ea557859c65be4c3fe108a09c",
+      "family_id": "format-boundary-001",
+      "page_count": null,
+      "cases": [
+        {
+          "kind": "body",
+          "locator": {"member": "word/document.xml", "path": "/w:document/w:body/w:p[1]/w:r[1]/w:t", "original_page": null},
+          "expected_text": "합성 DOCX 본문 위치 확인 문장."
+        },
+        {
+          "kind": "table_cell",
+          "locator": {"member": "word/document.xml", "path": "/w:document/w:body/w:tbl[1]/w:tr[1]/w:tc[1]/w:p/w:r/w:t", "original_page": null},
+          "expected_text": "표 첫째 셀"
+        },
+        {
+          "kind": "table_cell",
+          "locator": {"member": "word/document.xml", "path": "/w:document/w:body/w:tbl[1]/w:tr[1]/w:tc[2]/w:p/w:r/w:t", "original_page": null},
+          "expected_text": "표 둘째 셀"
+        },
+        {
+          "kind": "body",
+          "locator": {"member": "word/document.xml", "path": "/w:document/w:body/w:p[2]/w:r/w:t", "original_page": null},
+          "expected_text": "표 뒤의 본문 문장."
+        },
+        {
+          "kind": "footnote",
+          "locator": {"member": "word/footnotes.xml", "path": "/w:footnotes/w:footnote[@w:id='1']/w:p/w:r[2]/w:t", "original_page": null},
+          "expected_text": "합성 각주 위치 확인 문장."
+        },
+        {
+          "kind": "header",
+          "locator": {"member": "word/header1.xml", "path": "/w:hdr/w:p/w:r/w:t", "original_page": null},
+          "expected_text": "합성 머리말"
+        },
+        {
+          "kind": "footer",
+          "locator": {"member": "word/footer1.xml", "path": "/w:ftr/w:p/w:r/w:t", "original_page": null},
+          "expected_text": "합성 꼬리말"
+        }
+      ]
+    },
+    {
+      "id": "hwpx-spine",
+      "path": "spine-order.hwpx",
+      "sha256": "72372e048f95b841953084893d9a7d172d90761361fa41d6f08a5b36604a275b",
+      "family_id": "format-boundary-001",
+      "page_count": null,
+      "ordered_section_members": ["Contents/section1.xml", "Contents/section0.xml"],
+      "cases": [
+        {
+          "kind": "body",
+          "locator": {"member": "Contents/section1.xml", "path": "/hs:sec/hp:p[@id='10']/hp:run/hp:t", "section_reading_index": 0, "original_page": null},
+          "expected_text": "파일명은 section1이지만 첫 번째 읽기 구역."
+        },
+        {
+          "kind": "body",
+          "locator": {"member": "Contents/section0.xml", "path": "/hs:sec/hp:p[@id='20']/hp:run/hp:t", "section_reading_index": 1, "original_page": null},
+          "expected_text": "파일명은 section0이지만 두 번째 읽기 구역."
+        }
+      ]
+    },
+    {
+      "id": "hwp5-boundary",
+      "path": "minimal-5.1.1.0.hwp",
+      "sha256": "2d6ec3931e7a8a6a5c8c1f981cde0d812807449916bb4acb9a721a89b4141d23",
+      "family_id": "format-boundary-001",
+      "page_count": null,
+      "version": "5.1.1.0",
+      "flags": 0,
+      "cases": [
+        {
+          "kind": "body",
+          "locator": {"stream": "BodyText/Section0", "record_index": 1, "record_offset": 28, "tag_id": 67, "level": 1, "payload_offset": 32, "payload_length": 42, "encoding": "utf-16le", "original_page": null},
+          "expected_text": "합성 HWP5 구조 위치 확인 문장.",
+          "trailing_control": "\r"
+        }
+      ]
+    }
+  ]
+}

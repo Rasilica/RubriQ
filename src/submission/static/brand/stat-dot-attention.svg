@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
+  <defs>
+    <linearGradient id="rubriq-attention" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#c9aaff"/>
+      <stop offset=".33" stop-color="#fdffbc"/>
+      <stop offset=".66" stop-color="#ffccfd"/>
+      <stop offset="1" stop-color="#b3e1ff"/>
+    </linearGradient>
+  </defs>
+  <circle cx="4" cy="4" r="3.75" fill="url(#rubriq-attention)"/>
+</svg>

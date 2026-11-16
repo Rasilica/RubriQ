@@ -1,0 +1,126 @@
+{
+  "schema_version": "1",
+  "criteria_sha256": "7fd19f3b7be2666f3c83f5837990f6cc8e988571c3037062d2dc07962104909e",
+  "report_source_id": "report-076afc26e86c59bfd4861bf4a307de06c0f16701ca7d19d0949c52b42c8c39de",
+  "report_document_version_id": "report-076afc26e86c59bfd4861bf4a307de06c0f16701ca7d19d0949c52b42c8c39de",
+  "report_source_sha256": "076afc26e86c59bfd4861bf4a307de06c0f16701ca7d19d0949c52b42c8c39de",
+  "reviewed_block_ids": [
+    "p1-b1",
+    "p2-b1"
+  ],
+  "items": [
+    {
+      "requirement_id": "R1",
+      "proposed_judgment": "evidence_found",
+      "reason": "문제와 대상 사용자를 설명하는 본문 문장을 각각 연결했습니다.",
+      "evidence": [],
+      "subconditions": [
+        {
+          "subcondition_id": "R1-S1",
+          "proposed_judgment": "evidence_found",
+          "reason": "과제 요구사항을 빠뜨리는 문제를 설명합니다.",
+          "evidence": [
+            {
+              "citation": {
+                "block_id": "p1-b1",
+                "char_range": {
+                  "start": 57,
+                  "end": 95
+                },
+                "quote": "과제에서 요구한 내용을 깜빡하는 일을 줄이는 서비스가 제출 전입니다."
+              },
+              "evidence_role": "content",
+              "relation": "해결하려는 과제 누락 문제를 설명하는 문장입니다."
+            }
+          ]
+        },
+        {
+          "subcondition_id": "R1-S2",
+          "proposed_judgment": "evidence_found",
+          "reason": "과제 문서를 작성하는 학생을 대상으로 설명합니다.",
+          "evidence": [
+            {
+              "citation": {
+                "block_id": "p1-b1",
+                "char_range": {
+                  "start": 96,
+                  "end": 127
+                },
+                "quote": "대학에서 수업 과제 문서를 쓰는 학생을 위해 제안합니다."
+              },
+              "evidence_role": "content",
+              "relation": "사용 대상인 학생을 명시하는 문장입니다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "requirement_id": "R2",
+      "proposed_judgment": "evidence_found",
+      "reason": "표현이 달라도 요청 자료와 응답 자료를 설명한 본문에 각각 근거가 있습니다.",
+      "evidence": [],
+      "subconditions": [
+        {
+          "subcondition_id": "R2-S1",
+          "proposed_judgment": "evidence_found",
+          "reason": "모델에 전달할 문서와 요구사항을 설명합니다.",
+          "evidence": [
+            {
+              "citation": {
+                "block_id": "p2-b1",
+                "char_range": {
+                  "start": 25,
+                  "end": 67
+                },
+                "quote": "모델에는 지침의 개별 조건 문장과 작성 문서를 쪽별로 나눈 글을 전달합니다."
+              },
+              "evidence_role": "content",
+              "relation": "API 입력 자료의 내용을 설명하는 문장입니다."
+            }
+          ]
+        },
+        {
+          "subcondition_id": "R2-S2",
+          "proposed_judgment": "evidence_found",
+          "reason": "모델 응답에 포함할 판단과 인용 위치를 설명합니다.",
+          "evidence": [
+            {
+              "citation": {
+                "block_id": "p2-b1",
+                "char_range": {
+                  "start": 68,
+                  "end": 115
+                },
+                "quote": "응답에는 각 조건의 판정과 이를 뒷받침하는 작성 문서의 문장 및 쪽 위치를 받습니다."
+              },
+              "evidence_role": "content",
+              "relation": "API에서 받을 응답 자료의 내용을 설명하는 문장입니다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "requirement_id": "R3",
+      "proposed_judgment": "evidence_missing",
+      "reason": "검토한 범위에서 선택 구현 화면의 근거는 확인하지 못했습니다.",
+      "evidence": [],
+      "subconditions": []
+    },
+    {
+      "requirement_id": "R5",
+      "proposed_judgment": "deferred",
+      "reason": "분량 기준과 포함 범위를 검증하는 별도 규칙 평가가 아직 연결되지 않았습니다.",
+      "evidence": [],
+      "subconditions": [
+        {
+          "subcondition_id": "R5-S1",
+          "proposed_judgment": "deferred",
+          "reason": "파일의 자기 설명만으로 전체 분량을 확정하지 않습니다.",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

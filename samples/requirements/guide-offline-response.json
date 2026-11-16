@@ -1,0 +1,42 @@
+{
+  "schema_version": "1",
+  "source_id": "guide-488417203dac14c1ba0630d67ecf78f44451625564f960e12154fa1b08f13127",
+  "document_version_id": "guide-488417203dac14c1ba0630d67ecf78f44451625564f960e12154fa1b08f13127",
+  "source_sha256": "488417203dac14c1ba0630d67ecf78f44451625564f960e12154fa1b08f13127",
+  "requirements": [
+    {
+      "requirement_id": "R1", "title": "문제와 사용자", "classification": "required", "condition": null,
+      "citations": [{"block_id": "p1-b1", "char_range": {"start": 118, "end": 146}, "quote": "해결할 문제와 대상 사용자를 모두 설명해야 합니다."}],
+      "subconditions": [
+        {"subcondition_id": "R1-S1", "description": "해결할 문제 설명", "citations": [{"block_id": "p1-b1", "char_range": {"start": 118, "end": 146}, "quote": "해결할 문제와 대상 사용자를 모두 설명해야 합니다."}]},
+        {"subcondition_id": "R1-S2", "description": "대상 사용자 설명", "citations": [{"block_id": "p1-b1", "char_range": {"start": 118, "end": 146}, "quote": "해결할 문제와 대상 사용자를 모두 설명해야 합니다."}]}
+      ]
+    },
+    {
+      "requirement_id": "R2", "title": "AI API 사용계획", "classification": "required", "condition": null,
+      "citations": [{"block_id": "p1-b1", "char_range": {"start": 162, "end": 202}, "quote": "AI API에 보낼 입력과 API에서 받을 출력을 모두 설명해야 합니다."}],
+      "subconditions": [
+        {"subcondition_id": "R2-S1", "description": "API 입력 설명", "citations": [{"block_id": "p1-b1", "char_range": {"start": 162, "end": 202}, "quote": "AI API에 보낼 입력과 API에서 받을 출력을 모두 설명해야 합니다."}]},
+        {"subcondition_id": "R2-S2", "description": "API 출력 설명", "citations": [{"block_id": "p1-b1", "char_range": {"start": 162, "end": 202}, "quote": "AI API에 보낼 입력과 API에서 받을 출력을 모두 설명해야 합니다."}]}
+      ]
+    },
+    {
+      "requirement_id": "R3", "title": "구현 화면", "classification": "optional", "condition": null,
+      "citations": [{"block_id": "p2-b1", "char_range": {"start": 32, "end": 69}, "quote": "구현 화면은 선택 사항이며 없어도 필수 누락으로 처리하지 않습니다."}],
+      "subconditions": []
+    },
+    {
+      "requirement_id": "R4", "title": "개인정보 보호", "classification": "conditional",
+      "condition": {"description": "실제 개인정보를 입력에 사용하는 경우", "citations": [{"block_id": "p2-b1", "char_range": {"start": 87, "end": 105}, "quote": "실제 개인정보를 입력에 사용한다면"}]},
+      "citations": [{"block_id": "p2-b1", "char_range": {"start": 87, "end": 129}, "quote": "실제 개인정보를 입력에 사용한다면 전송 전 비식별화 방법을 설명해야 합니다."}],
+      "subconditions": []
+    },
+    {
+      "requirement_id": "R5", "title": "분량", "classification": "required", "condition": null,
+      "citations": [{"block_id": "p2-b1", "char_range": {"start": 178, "end": 208}, "quote": "보고서는 PDF 파일 전체가 2페이지 이하여야 합니다."}],
+      "subconditions": [
+        {"subcondition_id": "R5-S1", "description": "표지·참고문헌·부록·구현 화면을 포함한 전체 페이지 집계", "citations": [{"block_id": "p2-b1", "char_range": {"start": 209, "end": 250}, "quote": "표지, 본문, 참고문헌, 부록, 구현 화면을 포함한 모든 페이지를 셉니다."}]}
+      ]
+    }
+  ]
+}

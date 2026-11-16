@@ -1,0 +1,10 @@
+RubriQ
+Copyright 2026 RubriQ contributors
+
+Original RubriQ source code, documentation and synthetic sample material are
+licensed under the Apache License, Version 2.0. See LICENSE.
+
+Third-party code and dependencies retain their original licenses and notices.
+See THIRD_PARTY_NOTICES.md and the license files under vendor/.
+User documents, API credentials and local runtime data are not part of this
+source distribution.

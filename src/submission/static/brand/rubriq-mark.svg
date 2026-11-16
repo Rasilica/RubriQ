@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <title>RubriQ</title>
+  <style>.ink{stroke:#012bff}@media(prefers-color-scheme:dark){.ink{stroke:#91afff}}</style>
+  <g class="ink" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M36 27V16a9 9 0 0 0-9-9H17a9 9 0 0 0-9 9v14a9 9 0 0 0 9 9h10"/>
+    <path d="M17 17h10M17 24h10M17 31h5M28 33l5 5 9-12"/>
+  </g>
+</svg>

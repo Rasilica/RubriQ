@@ -1,0 +1,101 @@
+{
+  "schema_version": "1",
+  "renderer": {
+    "name": "pdftoppm",
+    "version": "26.04.0",
+    "dpi": 110
+  },
+  "documents": [
+    {
+      "document_id": "guide",
+      "pdf_path": "pdf/guide.pdf",
+      "pdf_sha256": "488417203dac14c1ba0630d67ecf78f44451625564f960e12154fa1b08f13127",
+      "pages": [
+        {
+          "page_number": 1,
+          "image_path": "result-demos/pages/guide-1.png",
+          "image_sha256": "2f6af0931828ea057c70890f29a14aaa368d347cc478d30c9c5b2763275fe7ce",
+          "width": 910,
+          "height": 1287
+        },
+        {
+          "page_number": 2,
+          "image_path": "result-demos/pages/guide-2.png",
+          "image_sha256": "d1a1420441a069ee98562f22d1c66617a464045dee1054feea578f05463b7725",
+          "width": 910,
+          "height": 1287
+        }
+      ]
+    },
+    {
+      "document_id": "normal",
+      "pdf_path": "pdf/normal.pdf",
+      "pdf_sha256": "e1d2cec83e391f8a47dc1541c3fe1606aab054d6bd88270eafb3a1843b5cf4fe",
+      "pages": [
+        {
+          "page_number": 1,
+          "image_path": "result-demos/pages/normal-1.png",
+          "image_sha256": "2d4e3d2ceab315b016f20f4a510f62df2e911ec85fdf673da1ef40aae3b41145",
+          "width": 910,
+          "height": 1287
+        },
+        {
+          "page_number": 2,
+          "image_path": "result-demos/pages/normal-2.png",
+          "image_sha256": "6918bfae4e1318ce637273a170dcd24207063fa1496fb49a47cdb1c3c0d05fc6",
+          "width": 910,
+          "height": 1287
+        }
+      ]
+    },
+    {
+      "document_id": "missing",
+      "pdf_path": "pdf/missing.pdf",
+      "pdf_sha256": "0eff6dce7834936cf386fed7e872811cb05f28862e5d6dace366ed62de90d257",
+      "pages": [
+        {
+          "page_number": 1,
+          "image_path": "result-demos/pages/missing-1.png",
+          "image_sha256": "2d4e3d2ceab315b016f20f4a510f62df2e911ec85fdf673da1ef40aae3b41145",
+          "width": 910,
+          "height": 1287
+        },
+        {
+          "page_number": 2,
+          "image_path": "result-demos/pages/missing-2.png",
+          "image_sha256": "e35f9c926524954b8a3e8fc78b7dce007f4a6ee6213a28452ce3328a83700904",
+          "width": 910,
+          "height": 1287
+        }
+      ]
+    },
+    {
+      "document_id": "over_limit",
+      "pdf_path": "result-demos/over-limit.pdf",
+      "pdf_sha256": "c79a0058a875d72f7ee0208c2304ee7f5c8b36c80e1c4f0fb9838c60ca8fc8b9",
+      "pages": [
+        {
+          "page_number": 1,
+          "image_path": "result-demos/pages/over_limit-1.png",
+          "image_sha256": "2d4e3d2ceab315b016f20f4a510f62df2e911ec85fdf673da1ef40aae3b41145",
+          "width": 910,
+          "height": 1287
+        },
+        {
+          "page_number": 2,
+          "image_path": "result-demos/pages/over_limit-2.png",
+          "image_sha256": "6918bfae4e1318ce637273a170dcd24207063fa1496fb49a47cdb1c3c0d05fc6",
+          "width": 910,
+          "height": 1287
+        },
+        {
+          "page_number": 3,
+          "image_path": "result-demos/pages/over_limit-3.png",
+          "image_sha256": "6918bfae4e1318ce637273a170dcd24207063fa1496fb49a47cdb1c3c0d05fc6",
+          "width": 910,
+          "height": 1287
+        }
+      ]
+    }
+  ]
+}
