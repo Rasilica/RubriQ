@@ -3,6 +3,7 @@ from typing import Final, assert_never
 from pydantic import JsonValue, SecretStr, TypeAdapter, ValidationError
 
 from submission import semantic_diagnostics as diagnostics
+from submission.billing_json_client import TIMEOUT_SECONDS as BILLING_TIMEOUT
 from submission.billing_json_client import generate_json
 from submission.citation_reference_wire import ReferenceWire, reference_wire
 from submission.cloud_client import INFERENCE, generate_text
@@ -14,7 +15,7 @@ from submission.semantic_wire import MAX_OUTPUT_BYTES, wire_document
 PROVIDER_TIMEOUT: Final = 180
 COMMON_INSTRUCTIONS: Final = (
     " 응답은 코드 블록이나 설명 없이 JSON 객체 하나만 반환하세요. "
-    "response_schema_json을 따르고 출처 식별자·해시는 요청에서 그대로 복사하세요. "
+    "response_schema_json을 따르세요. "
 )
 REFERENCE_INSTRUCTIONS: Final = (
     " reviewed_block_ids는 검토한 blocks의 bN ID이며 qN 인용 참조와 다릅니다. "
@@ -28,6 +29,10 @@ LEGACY_INSTRUCTIONS: Final = (
     "unicode_length는 원문 Unicode 길이입니다. "
     "가능하면 짧은 블록 전체를 그대로 인용하세요."
 )
+
+
+def provider_timeout(provider: Provider | str) -> float:
+    return BILLING_TIMEOUT if provider == Provider.BILLINGAI else PROVIDER_TIMEOUT
 
 
 def complete(request: AIRequest, instructions: str, payload: str, key: SecretStr) -> TextCompletion:

@@ -14,6 +14,7 @@ from submission.hwp_reader import read_hwp
 from submission.hwpx_reader import read_hwpx
 from submission.input_contracts import DocumentInput, InputValidationError
 from submission.models import PdfInput, UploadError
+from submission.ocr_pipeline import PageReader, apply_ocr
 from submission.pair_contracts import PairError, PairErrorCode, PairRuntime, PreparedRole, RoleView
 from submission.pdf_adapter import adapt_pdf
 
@@ -84,6 +85,7 @@ def prepare_role(
     deadline: float,
     *,
     on_read: Callable[[PreparedRole], None] | None = None,
+    read_page: PageReader | None = None,
 ) -> PreparedRole:
     try:
         document = read_source(source, runtime, deadline)
@@ -101,6 +103,9 @@ def prepare_role(
         )
     if document.source.detected_format == "pdf":
         document = document.model_copy(update={"rendering_status": ProcessingStatus.COMPLETE})
+        count = document.page_count.artifact_page_count
+        ocr = apply_ocr(document, source.content, count, runtime, deadline, read_page=read_page)
+        document = ocr.document
         return PreparedRole(
             RoleView(
                 role=source.role,
@@ -108,7 +113,8 @@ def prepare_role(
                 extraction_status=document.extraction_status,
                 rendering_status=ProcessingStatus.COMPLETE,
                 artifact_kind="original_pdf",
-                preview_page_count=document.page_count.artifact_page_count,
+                preview_page_count=count,
+                warnings=ocr.warnings,
             ),
             source.content,
             source.content,
@@ -158,6 +164,9 @@ def prepare_role(
             "rendering_status": ProcessingStatus.COMPLETE,
         }
     )
+    pages = result.preview_page_count
+    ocr = apply_ocr(document, result.pdf_bytes, pages, runtime, deadline, read_page=read_page)
+    document = ocr.document
     return PreparedRole(
         RoleView(
             role=source.role,
@@ -166,7 +175,7 @@ def prepare_role(
             rendering_status=ProcessingStatus.COMPLETE,
             artifact_kind="preview_pdf",
             preview_page_count=result.preview_page_count,
-            warnings=result.warnings,
+            warnings=(*result.warnings, *ocr.warnings),
         ),
         source.content,
         result.pdf_bytes,

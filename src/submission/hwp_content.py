@@ -1,5 +1,6 @@
 """Reject HWP binary content that could load outside files or objects during PDF rendering."""
 
+import re
 import struct
 import zlib
 from collections.abc import Iterator
@@ -19,6 +20,9 @@ CONTROL_ID_BYTES = 4
 BIN_LINK, BIN_STORAGE = 0, 2  # linked outside file, embedded OLE object
 # Same inert set as HWPX: click-here placeholders, hyperlinks and table formulas.
 INERT_FIELDS = frozenset({"%clk", "%hlk", "%fmu"})
+# `%unk` is hwplib's "unknown field". Real ones carry only slash-separated alphanumeric tokens and
+# an escaped semicolon: no scheme colon, dot, drive or parent path, so nothing names a file or URL.
+UNKNOWN_FIELD_COMMAND = re.compile(r"(?:[A-Za-z0-9/;]|\\;)*")
 
 
 def blocked() -> ConversionError:
@@ -60,7 +64,10 @@ def check_section(data: bytes) -> None:
         control = body[:CONTROL_ID_BYTES][::-1].decode("latin-1")
         if not control.startswith("%"):
             continue
-        if control not in INERT_FIELDS:
+        if control == "%unk":
+            if UNKNOWN_FIELD_COMMAND.fullmatch(field_command(body)) is None:
+                raise blocked()
+        elif control not in INERT_FIELDS:
             raise blocked()
         if control == "%hlk" and not is_safe_link(field_command(body).split(";", 1)[0]):
             raise blocked()

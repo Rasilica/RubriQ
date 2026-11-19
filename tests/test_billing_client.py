@@ -6,7 +6,7 @@ from billing_json_helpers import responses_body
 from pydantic import SecretStr
 
 from submission.cloud_client import INFERENCE, MAX_RESPONSE, rewrite
-from submission.cloud_contracts import CloudError, Provider
+from submission.cloud_contracts import CloudError, Provider, TextCompletion, Usage
 from submission.semantic_client import complete
 from submission.semantic_contracts import AIRequest
 
@@ -186,7 +186,7 @@ def test_billing_semantic_output_when_large_or_invalid(text):
                 complete(request, "Instructions", "{}", SecretStr("test-key"))
     # Then: semantic requests retain their output budget and the lock is released.
     body = json.loads(connection.request.call_args.kwargs["body"])
-    assert body["max_output_tokens"] == 8192
+    assert body["max_output_tokens"] == 32000
     assert not INFERENCE.locked()
 
 
@@ -207,3 +207,14 @@ def test_billing_rejects_bad_or_oversized_wire_response(raw):
         rewrite(Provider("billingai"), "gpt-5-4", "Selected", SecretStr("test-key"))
     # Then: the lock remains usable after failure.
     assert not INFERENCE.locked()
+
+
+def test_direct_provider_semantic_keeps_8192_output_cap():
+    # Given: a direct provider whose API rejects caps above the model limit.
+    request = AIRequest(provider="openai", model="gpt-5-4", consent=True)
+    completion = TextCompletion(suggestion="{}", usage=Usage(input_tokens=1, output_tokens=1))
+    # When: the semantic client calls it.
+    with patch("submission.semantic_client.generate_text", return_value=completion) as call:
+        complete(request, "Instructions", "{}", SecretStr("test-key"))
+    # Then: the unmeasured providers keep the original cap.
+    assert call.call_args.kwargs["max_tokens"] == 8192

@@ -1,5 +1,7 @@
 import hashlib
 import json
+from collections.abc import Sequence
+from typing import Final
 
 from pydantic import ValidationError
 from pydantic_core import PydanticSerializationError
@@ -13,6 +15,7 @@ from submission.report_check_contracts import (
     ReportCheckError,
     ReportCheckErrorCode,
     ReportCheckLimits,
+    ReportCheckModelResponse,
     ReportCheckResponse,
     ReportEvidence,
 )
@@ -60,7 +63,28 @@ def validate_criteria_context(context: CriteriaContext, limits: ReportCheckLimit
         raise ReportCheckError(ReportCheckErrorCode.INVALID_CONTEXT) from None
 
 
-def parse_response(raw: str, limits: ReportCheckLimits) -> ReportCheckResponse:
+IDENTITY_KEYS: Final = (
+    "criteria_sha256",
+    "report_source_id",
+    "report_document_version_id",
+    "report_source_sha256",
+)
+
+
+def _drop_identity(raw: str) -> str:
+    """Old-style replies may still echo identity; the server's values replace them."""
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        return raw  # the strict validator reports the malformed JSON
+    if not isinstance(value, dict):
+        return raw
+    return json.dumps({k: v for k, v in value.items() if k not in IDENTITY_KEYS})
+
+
+def parse_response(
+    raw: str, limits: ReportCheckLimits, context: ReportCheckContext
+) -> ReportCheckResponse:
     if len(raw) > limits.max_response_bytes:
         raise ReportCheckError(ReportCheckErrorCode.RESPONSE_LIMIT)
     try:
@@ -70,10 +94,52 @@ def parse_response(raw: str, limits: ReportCheckLimits) -> ReportCheckResponse:
     if size > limits.max_response_bytes:
         raise ReportCheckError(ReportCheckErrorCode.RESPONSE_LIMIT)
     try:
-        return ReportCheckResponse.model_validate_json(raw, strict=True)
+        parsed = ReportCheckModelResponse.model_validate_json(_drop_identity(raw), strict=True)
     except ValidationError as error:
         diagnostics.contract_failure(ReportCheckErrorCode.INVALID_RESPONSE, "schema_invalid", error)
         raise ReportCheckError(ReportCheckErrorCode.INVALID_RESPONSE) from None
+    source = context.report.source
+    return ReportCheckResponse(
+        criteria_sha256=criteria_fingerprint(context),
+        report_source_id=source.source_id,
+        report_document_version_id=source.document_version_id,
+        report_source_sha256=source.content_sha256,
+        **parsed.model_dump(),
+    )
+
+
+def submitted_report_block_ids(context: ReportCheckContext) -> tuple[str, ...]:
+    return tuple(block.block_id for block in context.report.blocks if block.raw_text.strip())
+
+
+def without_sent_figures(
+    response: ReportCheckResponse, context: ReportCheckContext
+) -> ReportCheckResponse:
+    """Figure markers were sent but are never reviewed text; a model listing one is harmless."""
+    figures = {block.block_id for block in context.report.blocks if block.kind == "figure"}
+    kept = tuple(b for b in response.reviewed_block_ids if b not in figures)
+    if len(kept) == len(response.reviewed_block_ids):
+        return response
+    return response.model_copy(update={"reviewed_block_ids": kept})
+
+
+def with_cited_blocks_reviewed(
+    response: ReportCheckResponse, submitted_ids: Sequence[str]
+) -> ReportCheckResponse:
+    """Citing a submitted block proves it was read; unsubmitted ids still fail the scope checks."""
+    cited = {
+        entry.citation.block_id
+        for item in response.items
+        for group in (item.evidence, *(sub.evidence for sub in item.subconditions))
+        for entry in group
+    }
+    reviewed = response.reviewed_block_ids
+    added = tuple(b for b in submitted_ids if b in cited and b not in reviewed)
+    if not added:
+        return response
+    order = {block_id: index for index, block_id in enumerate(submitted_ids)}
+    merged = sorted((*reviewed, *added), key=lambda b: order.get(b, len(order)))
+    return response.model_copy(update={"reviewed_block_ids": tuple(merged)})
 
 
 def validate_response(context: ReportCheckContext, response: ReportCheckResponse) -> None:
@@ -88,7 +154,7 @@ def validate_response(context: ReportCheckContext, response: ReportCheckResponse
     if response.criteria_sha256 != criteria_fingerprint(context):
         diagnostics.contract_failure(ReportCheckErrorCode.CRITERIA_MISMATCH, "criteria_binding")
         raise ReportCheckError(ReportCheckErrorCode.CRITERIA_MISMATCH)
-    submitted = {block.block_id for block in context.report.blocks if block.raw_text.strip()}
+    submitted = set(submitted_report_block_ids(context))
     if len(set(response.reviewed_block_ids)) != len(response.reviewed_block_ids):
         diagnostics.contract_failure(ReportCheckErrorCode.INVALID_SCOPE, "scope_duplicate")
         raise ReportCheckError(ReportCheckErrorCode.INVALID_SCOPE)

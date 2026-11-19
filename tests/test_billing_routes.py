@@ -73,7 +73,7 @@ def test_billing_extract_confirm_check_when_transport_returns_valid_json(semanti
         assert request.args == ("POST", "/api/v1/responses")
         assert request.kwargs["headers"]["Authorization"] == "Bearer test-key"
         assert body["model"] == "gpt-5-4"
-        assert body["max_output_tokens"] == 8192
+        assert body["max_output_tokens"] == 32000
         assert body["text"] == {"format": {"type": "json_object"}}
         assert "store" not in body
         assert "previous_response_id" not in body

@@ -75,11 +75,16 @@ def test_native_korean_nested_paths_references_and_unicode(tmp_path: Path) -> No
     assert document.blocks[8].raw_char_range.start == 5
     assert document.coverage.scope == "hwp5_structure"
     assert [position.path for position in document.coverage.omitted_locators] == [
-        ROOT + "/control[0]",
-        ROOT + "/control[1]",
         ROOT + "/control[6]",
     ]
     assert tuple((tmp_path / "jobs").iterdir()) == ()
+
+
+def test_native_inert_controls_are_silent_but_equation_is_reported(tmp_path: Path) -> None:
+    document = read_hwp(fixture_input(tmp_path, "inert"), native_config(tmp_path))
+    assert "".join(block.raw_text for block in document.blocks) == "링크 앞링크 글자링크 뒤"
+    omitted = [position.path for position in document.coverage.omitted_locators]
+    assert omitted == [ROOT + "/control[5]"]
 
 
 def test_native_result_can_exceed_stdout_limit(tmp_path: Path) -> None:
@@ -119,3 +124,44 @@ def test_native_result_limit_is_typed_and_cleans_job(tmp_path: Path) -> None:
         _ = read_hwp(source, config)
     assert failure.value.code == ConversionErrorCode.OUTPUT_LIMIT
     assert tuple(config.work_root.iterdir()) == ()
+
+
+def test_native_pictures_become_figure_blocks_with_caption_children(tmp_path: Path) -> None:
+    source = fixture_input(tmp_path, "figures")
+    document = read_hwp(source, native_config(tmp_path))
+    figures = [block for block in document.blocks if block.kind == "figure"]
+    assert len(figures) == 2
+    assert all(figure.raw_text == "" for figure in figures)
+    children = [
+        [b.raw_text for b in document.blocks if b.parent_block_id == figure.block_id]
+        for figure in figures
+    ]
+    assert children == [["그림 프론트엔드 대시보드"], []]
+    texts = [block.raw_text for block in document.blocks if block.raw_text]
+    assert sorted(texts) == sorted(
+        ["그림 앞", "그림 프론트엔드 대시보드", "그림 뒤", "표 문단", "표 성능 지표", "표 셀 내용"]
+    )
+    assert [w.code for w in document.warnings].count("figure_content_unread") == 2
+    assert document.extraction_status == "partial"
+    assert not any(
+        position.path.endswith("control[2]") or position.path.endswith("control[3]")
+        for position in document.coverage.omitted_locators
+    )
+
+
+def test_native_text_box_shape_is_figure_with_paragraph_children(tmp_path: Path) -> None:
+    document = read_hwp(fixture_input(tmp_path, "textboxes"), native_config(tmp_path))
+    figures = [block for block in document.blocks if block.kind == "figure"]
+    assert len(figures) == 2
+    box, picture = figures
+    children = [b for b in document.blocks if b.parent_block_id == box.block_id]
+    assert [b.raw_text for b in children] == ["상자 안 첫 줄", "둘째 줄"]
+    assert all("/control[2]/textbox/paragraph[" in b.source_locator.path for b in children)
+    assert [b.raw_text for b in document.blocks if b.parent_block_id == picture.block_id] == []
+    # Only the picture keeps the unread warning; the fully read text box does not.
+    unread = [w for w in document.warnings if w.code == "figure_content_unread"]
+    assert [w.source_locator for w in unread] == [picture.source_locator]
+    assert not any(
+        position.path.endswith(("control[2]", "textbox"))
+        for position in document.coverage.omitted_locators
+    )

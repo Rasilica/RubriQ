@@ -398,3 +398,63 @@ def test_invalid_relationship_owner_or_target_is_rejected(name: str, target: str
     with pytest.raises(ConversionError) as caught:
         reject_active_content(content)
     assert caught.value.code == ConversionErrorCode.UNSUPPORTED_ACTIVE_CONTENT
+
+
+EMF = b"\x01\x00\x00\x00" + b"\x00" * 36 + b" EMF" + b"\x00" * 8
+WMF_PLACEABLE = b"\xd7\xcd\xc6\x9a" + b"\x00" * 20
+WMF_STANDARD = b"\x01\x00\x09\x00" + b"\x00" * 20
+WMF_DISK_STANDARD = b"\x02\x00\x09\x00" + b"\x00" * 20
+
+
+@pytest.mark.parametrize(
+    ("content_type", "payload"),
+    [
+        ("image/x-emf", EMF),
+        ("image/emf", EMF),
+        ("image/x-wmf", WMF_PLACEABLE),
+        ("image/wmf", WMF_STANDARD),
+        ("image/x-wmf", WMF_DISK_STANDARD),
+    ],
+)
+def test_metafile_pictures_with_matching_signature_are_accepted(
+    content_type: str, payload: bytes
+) -> None:
+    content = declared_package("word/media/image.bin", content_type, payload)
+    assert reject_active_content(content) is None
+
+
+@pytest.mark.parametrize(
+    ("content_type", "payload"),
+    [
+        *(
+            (kind, bad)
+            for kind in ("image/x-emf", "image/emf")
+            for bad in (
+                b"",
+                b"not an image",
+                b"\x02\x00\x00\x00" + b"\x00" * 36 + b" EMF",  # wrong record type
+                b"\x01\x00\x00\x00" + b"\x00" * 36 + b" EMX",  # wrong signature
+                b"\x01\x00\x00\x00" + b"\x00" * 36,  # truncated
+                WMF_PLACEABLE,
+            )
+        ),
+        *(
+            (kind, bad)
+            for kind in ("image/x-wmf", "image/wmf")
+            for bad in (
+                b"",
+                b"not an image",
+                b"\x03\x00\x09\x00" + b"\x00" * 20,  # wrong type
+                b"\x01\x00\x08\x00" + b"\x00" * 20,  # wrong header size
+                EMF,
+            )
+        ),
+    ],
+)
+def test_metafile_pictures_with_wrong_signature_are_rejected(
+    content_type: str, payload: bytes
+) -> None:
+    content = declared_package("word/media/image.bin", content_type, payload)
+    with pytest.raises(ConversionError) as caught:
+        reject_active_content(content)
+    assert caught.value.code == ConversionErrorCode.UNSUPPORTED_ACTIVE_CONTENT

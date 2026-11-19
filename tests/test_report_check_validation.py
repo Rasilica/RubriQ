@@ -6,7 +6,12 @@ from report_check_helpers import context, evidence, payload
 from submission.document_contracts import CharacterRange, ProcessingStatus
 from submission.models import DocumentRole
 from submission.report_check_adapter import build_report_check, prepare_report_check_request
-from submission.report_check_contracts import ReportCheckError, ReportCheckLimits
+from submission.report_check_contracts import (
+    ReportCheckError,
+    ReportCheckLimits,
+    ReportCheckResponse,
+)
+from submission.report_check_validation import validate_response
 
 
 @pytest.mark.parametrize(
@@ -19,7 +24,7 @@ def test_response_when_source_or_snapshot_is_stale_rejects(field):
     raw = {**payload(ctx), field: "0" * 64}
     # When
     with pytest.raises(ReportCheckError) as error:
-        build_report_check(ctx, json.dumps(raw))
+        validate_response(ctx, ReportCheckResponse.model_validate(raw))
     # Then
     assert error.value.code in {"source_mismatch", "criteria_mismatch"}
 
@@ -29,7 +34,6 @@ def test_response_when_source_or_snapshot_is_stale_rejects(field):
     [
         "duplicate_scope",
         "unknown_scope",
-        "unreviewed_cite",
         "missing_item",
         "reordered_item",
         "missing_sub",
@@ -49,8 +53,6 @@ def test_response_when_identity_or_citation_invalid_rejects(change):
         raw["reviewed_block_ids"] *= 2
     elif change == "unknown_scope":
         raw["reviewed_block_ids"] += ["absent"]
-    elif change == "unreviewed_cite":
-        raw["reviewed_block_ids"] = []
     elif change == "missing_item":
         raw["items"].pop()
     elif change == "reordered_item":
@@ -234,3 +236,76 @@ def test_context_when_criteria_text_exceeds_budget_is_rejected():
         prepare_report_check_request(ctx, limits=ReportCheckLimits(max_input_characters=limit))
     # Then
     assert error.value.code == "input_limit"
+
+
+def _pad_with_empty_blocks(document, count):
+    template = document.blocks[0]
+    empties = tuple(
+        template.model_copy(update={"block_id": f"empty-{index}", "raw_text": ""})
+        for index in range(count)
+    )
+    return document.model_copy(update={"blocks": (*document.blocks, *empties)})
+
+
+def test_context_when_only_empty_blocks_exceed_limit_is_accepted():
+    # Given: the limit equals the non-empty total, but empty blocks push the raw count over it.
+    ctx = context()
+    sent = sum(1 for d in (ctx.guide, ctx.report) for b in d.blocks if b.raw_text.strip())
+    padded = ctx.model_copy(
+        update={
+            "guide": _pad_with_empty_blocks(ctx.guide, 5),
+            "report": _pad_with_empty_blocks(ctx.report, 5),
+        }
+    )
+    # When / Then: no INPUT_LIMIT, exactly max_blocks non-empty blocks is allowed.
+    prepare_report_check_request(padded, limits=ReportCheckLimits(max_blocks=sent))
+
+
+def test_context_when_non_empty_blocks_exceed_limit_is_rejected_despite_empties():
+    ctx = context()
+    sent = max(sum(1 for b in d.blocks if b.raw_text.strip()) for d in (ctx.guide, ctx.report))
+    padded = ctx.model_copy(
+        update={
+            "guide": _pad_with_empty_blocks(ctx.guide, 5),
+            "report": _pad_with_empty_blocks(ctx.report, 5),
+        }
+    )
+    with pytest.raises(ReportCheckError):
+        prepare_report_check_request(padded, limits=ReportCheckLimits(max_blocks=sent - 1))
+
+
+def test_response_when_cited_submitted_block_not_listed_as_reviewed_succeeds():
+    # Given
+    ctx = context()
+    raw = payload(ctx)
+    cite = evidence(ctx)
+    raw["items"][2]["evidence"] = [cite]
+    raw["reviewed_block_ids"] = []
+    # When
+    result = build_report_check(ctx, json.dumps(raw))
+    # Then
+    assert result.reviewed_block_ids == (cite["citation"]["block_id"],)
+
+
+@pytest.mark.parametrize("kind", ["guide", "empty", "invented"])
+def test_response_when_cited_block_not_submitted_rejects_invalid_scope(kind):
+    # Given
+    ctx = context()
+    raw = payload(ctx)
+    cite = evidence(ctx)
+    report_ids = {block.block_id for block in ctx.report.blocks}
+    guide_only = next((b.block_id for b in ctx.guide.blocks if b.block_id not in report_ids), None)
+    if kind == "guide" and guide_only is None:
+        pytest.skip("guide and report block ids overlap in this fixture")
+    cite["citation"]["block_id"] = {
+        "guide": guide_only,
+        "empty": "empty-block",
+        "invented": "absent",
+    }[kind]
+    raw["items"][2]["evidence"] = [cite]
+    raw["reviewed_block_ids"] = []
+    # When
+    with pytest.raises(ReportCheckError) as error:
+        build_report_check(ctx, json.dumps(raw))
+    # Then
+    assert error.value.code == "invalid_scope"

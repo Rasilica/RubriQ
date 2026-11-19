@@ -5,7 +5,7 @@ from typing import Annotated, Literal, override
 from pydantic import Field
 
 from submission.document_contracts import DocumentSource
-from submission.models import DocumentRole, FrozenModel
+from submission.models import MAX_DOCUMENT_PAGES, DocumentRole, FrozenModel
 
 type DocumentFormat = Literal["pdf", "docx", "hwpx", "hwp"]
 
@@ -20,7 +20,7 @@ class DocumentInput:
 
 class InputLimits(FrozenModel):
     max_bytes: Annotated[int, Field(gt=0)] = 10 * 1024 * 1024
-    max_pdf_pages: Annotated[int, Field(gt=0)] = 50
+    max_pdf_pages: Annotated[int, Field(gt=0)] = MAX_DOCUMENT_PAGES
     max_members: Annotated[int, Field(gt=0)] = 2000
     max_expanded_bytes: Annotated[int, Field(gt=0)] = 100 * 1024 * 1024
     max_member_bytes: Annotated[int, Field(gt=0)] = 20 * 1024 * 1024

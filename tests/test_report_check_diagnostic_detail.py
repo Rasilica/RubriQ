@@ -47,7 +47,7 @@ def test_schema_detail_does_not_log_values(caplog):
     raw["items"][0]["reason"] = 42
     with diagnostics.scope(), caplog.at_level(logging.WARNING):
         with pytest.raises(ReportCheckError):
-            parse_response(json.dumps(raw), ReportCheckLimits())
+            parse_response(json.dumps(raw), ReportCheckLimits(), context())
         diagnostics.failure(422, monotonic())
     assert '"branch":"schema_invalid"' in caplog.text
     assert '"path":["items",0,"extra"]' in caplog.text
@@ -80,7 +80,9 @@ def test_nested_branches(branch, caplog):
         code = "invalid_identity"
     else:
         raw["reviewed_block_ids"] = []
-        raw["items"][0]["evidence"] = [evidence(ctx)]
+        cite = evidence(ctx)
+        cite["citation"]["block_id"] = "absent"
+        raw["items"][0]["evidence"] = [cite]
         code = "invalid_scope"
     response = ReportCheckResponse.model_validate_json(json.dumps(raw))
     with diagnostics.scope(), caplog.at_level(logging.WARNING):

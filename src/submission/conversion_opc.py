@@ -8,7 +8,7 @@ from zipfile import ZipFile
 from defusedxml.ElementTree import fromstring
 
 from submission.conversion_contracts import ConversionError, ConversionErrorCode
-from submission.conversion_images import IMAGE_TYPES, inspect_raster_signature
+from submission.conversion_images import IMAGE_TYPES, SIGNATURE_BYTES, inspect_raster_signature
 from submission.format_containers import relationship_target
 from submission.input_contracts import InputValidationError
 
@@ -139,7 +139,7 @@ def _xml_members(
             raise ConversionError(ConversionErrorCode.UNSUPPORTED_ACTIVE_CONTENT)
         else:
             with package.open(member) as image:
-                inspect_raster_signature(image.read(8), content_type)
+                inspect_raster_signature(image.read(SIGNATURE_BYTES), content_type)
     return tuple(selected)
 
 

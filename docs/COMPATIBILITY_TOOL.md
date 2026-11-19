@@ -31,7 +31,7 @@ manifest 예시:
 }
 ```
 
-경로는 manifest 기준 상대 경로나 절대 경로다. 심볼릭 링크가 포함된 경로는 거부하므로 macOS 임시 경로는 `/tmp` 대신 실제 `/private/tmp` 경로를 사용한다. 파일당 10 MiB, PDF 50쪽, 문구 추출 20만 자, manifest 1 MiB, 최대 100개 case/100개 문구, 생성 PDF 합계 256 MiB를 제한한다. case 준비와 문구 비교는 180초 제한을 공유한다. 각 PDF snapshot은 case당 한 번 읽고 재사용한다.
+경로는 manifest 기준 상대 경로나 절대 경로다. 심볼릭 링크가 포함된 경로는 거부하므로 macOS 임시 경로는 `/tmp` 대신 실제 `/private/tmp` 경로를 사용한다. 파일당 10 MiB, PDF 100쪽, 문구 추출 20만 자, manifest 1 MiB, 최대 100개 case/100개 문구, 생성 PDF 합계 256 MiB를 제한한다. case 준비와 문구 비교는 180초 제한을 공유한다. 각 PDF snapshot은 case당 한 번 읽고 재사용한다.
 
 `source` 또는 `reference`가 없으면 `material_missing`이다. 기준 PDF가 있으면 `reference`에도 path/SHA를 기록하고, 작성 앱에서 별도로 내보낸 자료임을 `reference_origin: authoring_app_export`로 선언한다. `service_preview` 선언과 편집 형식의 서비스 변환본과 동일한 SHA의 기준 출력은 거부한다. 출처 선언 자체를 암호학적으로 증명하지는 않는다. 원본 형식이 PDF이면 원본 자체와 동일한 기준 출력은 허용된다.
 

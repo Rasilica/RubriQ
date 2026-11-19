@@ -146,3 +146,41 @@ def test_empty_response_is_an_unconfirmed_draft_with_diagnostic() -> None:
     assert draft.requirements == ()
     assert draft.diagnostics == ("no_requirements_returned",)
     assert not draft.confirmed
+
+
+def _pad_with_empty_blocks(document, count):
+    template = document.blocks[0]
+    empties = tuple(
+        template.model_copy(update={"block_id": f"empty-{index}", "raw_text": ""})
+        for index in range(count)
+    )
+    return document.model_copy(update={"blocks": (*document.blocks, *empties)})
+
+
+def test_empty_blocks_do_not_count_toward_block_limit() -> None:
+    document = guide_document()
+    sent = len(document.blocks)
+    padded = _pad_with_empty_blocks(document, 5)
+    limits = RequirementLimits(max_blocks=sent)  # exactly max_blocks non-empty is allowed
+    prepare_requirement_request(padded, limits=limits)
+
+
+def test_non_empty_blocks_over_block_limit_are_rejected_despite_empties() -> None:
+    document = guide_document()
+    padded = _pad_with_empty_blocks(document, 5)
+    limits = RequirementLimits(max_blocks=len(document.blocks) - 1)
+    with pytest.raises(RequirementError) as caught:
+        prepare_requirement_request(padded, limits=limits)
+    assert caught.value.code is RequirementErrorCode.INPUT_LIMIT
+
+
+def test_response_between_target_and_limit_is_accepted() -> None:
+    payload = response_payload()
+    first = payload["requirements"][0]
+    payload["requirements"] = [
+        {**first, "requirement_id": f"R{n}", "subconditions": []} for n in range(1, 29)
+    ]
+
+    draft = build_requirement_draft(guide_document(), json.dumps(payload))
+
+    assert len(draft.requirements) == 28

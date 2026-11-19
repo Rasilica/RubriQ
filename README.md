@@ -38,7 +38,8 @@ uv run --no-dev uvicorn submission.main:app --app-dir src --host 127.0.0.1 --por
 
 | 기능 | 추가 요구사항 |
 |---|---|
-| PDF 읽기·원본 PDF 제공 | Python 의존성만 필요. 이미지 기반 PDF의 OCR은 제공하지 않음 |
+| PDF 읽기·원본 PDF 제공 | Python 의존성만 필요 |
+| 이미지 속 글자 인식(선택) | macOS Vision 도우미 `.runtime/ocr/vision-ocr`(`tools/build_vision_ocr.py`로 빌드)와 `pdftoppm`, `ocr` 런타임 설정. 글자를 추출하지 못한 PDF 쪽과 이미지 전용 문서만 읽음 |
 | PDF 페이지 이미지 | Poppler의 `pdftoppm` 경로 설정 |
 | DOCX 원문 구조 읽기 | Python 의존성만 필요 |
 | DOCX 확인용 PDF | 별도 설치한 LibreOffice와 `docx` 런타임 설정 |
@@ -48,7 +49,7 @@ uv run --no-dev uvicorn submission.main:app --app-dir src --host 127.0.0.1 --por
 
 공개 저장소에는 Java·LibreOffice·H2Orestart 실행 환경이나 모델 가중치를 포함하지 않습니다. 각 도구를 신뢰할 수 있는 배포처에서 설치하고 해당 라이선스를 확인하세요. JDK17은 현재 보안 패치를 적용한 버전을 사용하고, 전역 Java 설정 대신 프로젝트 전용 경로를 지정합니다.
 
-`DOCUMENT_PAIR_RUNTIME_FILE`은 로컬 JSON 설정 파일 경로입니다. 설정은 [PairRuntime](src/submission/pair_contracts.py)의 `pdftoppm`, `docx`, `hwp`, `hancom` 항목을 사용합니다. 예를 들어 Poppler만 연결하는 설정은 다음과 같습니다. 경로는 자신의 설치 위치로 바꿉니다.
+`DOCUMENT_PAIR_RUNTIME_FILE`은 로컬 JSON 설정 파일 경로입니다. 설정은 [PairRuntime](src/submission/pair_contracts.py)의 `pdftoppm`, `docx`, `hwp`, `hancom`, `ocr` 항목을 사용합니다. 예를 들어 Poppler만 연결하는 설정은 다음과 같습니다. 경로는 자신의 설치 위치로 바꿉니다.
 
 ```json
 {
@@ -59,6 +60,15 @@ uv run --no-dev uvicorn submission.main:app --app-dir src --host 127.0.0.1 --por
 ```sh
 DOCUMENT_PAIR_RUNTIME_FILE=.runtime/pair-runtime.json \
   uv run --no-dev uvicorn submission.main:app --app-dir src --host 127.0.0.1 --port 8027
+```
+
+`ocr`은 [OcrConfig](src/submission/ocr_contracts.py)로 `binary_path`와 빌드 때 출력한 `sha256`을 고정하고 `timeout_seconds` 등 한도를 선택 지정합니다. 없으면 OCR 없이 기존과 같게 동작합니다. 인식한 글자는 "글자 인식(오류 가능)"으로 표시되며 문서는 부분 읽기로 처리되고, 외부로 전송하지 않습니다. 자세한 계약은 [Semantic AI](docs/SEMANTIC_AI.md)를 참고하세요.
+
+```json
+{
+  "pdftoppm": "/absolute/path/to/pdftoppm",
+  "ocr": {"binary_path": "/absolute/path/.runtime/ocr/vision-ocr", "sha256": "<빌드 출력 SHA-256>"}
+}
 ```
 
 DOCX 변환 설정은 [ConversionConfig](src/submission/conversion_contracts.py)의 `soffice`와 `work_root`를 사용합니다. HWP reader는 [provision_hwp_reader](src/submission/hwp_reading.py), 한컴 변환 프로필은 [seal_profile](src/submission/hancom_profile.py)로 파일 해시를 고정합니다. `seal_profile`은 이미 준비한 전용 프로필을 검증·봉인하며 확장을 설치하지 않습니다. 프로그램·확장·프로필이 바뀌면 재봉인과 재검증이 필요합니다. 다른 사람의 로컬 설정이나 사용 중인 일반 LibreOffice 프로필을 복사하지 마세요.
@@ -97,7 +107,7 @@ OLLAMA_HOST=127.0.0.1:11434 OLLAMA_NO_CLOUD=1 ollama serve
 
 | 항목 | 기본 한도 |
 |---|---|
-| 업로드 | 파일당 10 MiB, PDF 50쪽 |
+| 업로드 | 파일당 10 MiB, PDF 100쪽 |
 | 문서 준비 | 동시 1건, 전체 180초 |
 | 임시 문서 | 30분, 최대 4쌍, 합계 256 MiB |
 | 영구 보관 | 스냅샷당 256 MiB, 전체 payload 1 GiB, 최대 100개 |

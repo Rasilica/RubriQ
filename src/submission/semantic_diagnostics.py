@@ -11,6 +11,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from submission.report_check_contracts import ReportCheckErrorCode
+from submission.requirement_contracts import RequirementErrorCode
 
 type Stage = Literal[
     "transport",
@@ -18,6 +19,7 @@ type Stage = Literal[
     "output_validation",
     "json_decode",
     "report_validation",
+    "requirement_validation",
     "result_build",
 ]
 type Reason = Literal[
@@ -34,6 +36,7 @@ type Reason = Literal[
     "unsafe_output",
     "malformed_json",
     "report_contract_invalid",
+    "requirement_contract_invalid",
     "citation_invalid",
     "result_invalid",
 ]
@@ -71,8 +74,20 @@ type ContractBranch = Literal[
     "citation_range_invalid",
     "citation_quote_mismatch",
     "citation_quote",
+    "requirement_response_size",
+    "requirement_encoding",
+    "requirement_schema",
+    "requirement_source_binding",
+    "requirement_id_duplicate",
+    "requirement_count",
+    "subcondition_count",
+    "requirement_text_length",
+    "requirement_citation_count",
+    "requirement_quote_length",
+    "merge_count",
     "unknown",
 ]
+type ContractCode = ReportCheckErrorCode | RequirementErrorCode
 SCHEMA_FIELDS = frozenset(
     {
         "schema_version",
@@ -93,6 +108,15 @@ SCHEMA_FIELDS = frozenset(
         "relation",
         "block_id",
         "char_range",
+        "source_id",
+        "document_version_id",
+        "source_sha256",
+        "requirements",
+        "title",
+        "classification",
+        "condition",
+        "description",
+        "citations",
         "start",
         "end",
         "quote",
@@ -131,15 +155,20 @@ class SchemaIssue:
 
 @dataclass(frozen=True)
 class ContractDetail:
-    code: ReportCheckErrorCode
+    code: ContractCode
     branch: ContractBranch
     issues: tuple[SchemaIssue, ...] = ()
+    count: int | None = None
+    limit: int | None = None
 
 
 def contract_failure(
-    code: ReportCheckErrorCode,
+    code: ContractCode,
     branch: ContractBranch = "unknown",
     error: ValidationError | None = None,
+    *,
+    count: int | None = None,
+    limit: int | None = None,
 ) -> None:
     if not ACTIVE.get():
         return
@@ -164,15 +193,15 @@ def contract_failure(
         )
     )
     current = TRACE.get()
-    detail = ContractDetail(code, branch, issues)
+    detail = ContractDetail(code, branch, issues, count, limit)
     if current is not None and branch == "unknown" and current.detail is not None:
         return
-    mark(
-        "report_validation",
-        "citation_invalid"
-        if code == ReportCheckErrorCode.INVALID_CITATION
-        else "report_contract_invalid",
-    )
+    is_requirement = isinstance(code, RequirementErrorCode)
+    stage: Stage = "requirement_validation" if is_requirement else "report_validation"
+    if code.value == "invalid_citation":
+        mark(stage, "citation_invalid")
+    else:
+        mark(stage, "requirement_contract_invalid" if is_requirement else "report_contract_invalid")
     current = TRACE.get()
     if current is not None:
         _ = TRACE.set(replace(current, detail=detail))
@@ -181,11 +210,13 @@ def contract_failure(
 def detail_json(detail: ContractDetail | None) -> str:
     if detail is None:
         return "null"
+    counts = {} if detail.count is None else {"count": detail.count, "limit": detail.limit}
     return json.dumps(
         {
             "code": detail.code.value,
             "branch": detail.branch,
             "issues": [{"type": issue.type, "path": issue.path} for issue in detail.issues],
+            **counts,
         },
         separators=(",", ":"),
     )

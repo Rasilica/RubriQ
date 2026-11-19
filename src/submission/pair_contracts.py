@@ -10,6 +10,7 @@ from submission.evidence_selection import EvidenceSelection as EvidenceSelection
 from submission.hancom_contracts import HancomConversionConfig
 from submission.hwp_reading_contracts import HwpReadConfig
 from submission.models import DocumentRole, FrozenModel
+from submission.ocr_contracts import OcrConfig
 from submission.semantic_contracts import SemanticArchive
 
 
@@ -18,6 +19,7 @@ class PairRuntime(FrozenModel):
     hancom: HancomConversionConfig | None = None
     hwp: HwpReadConfig | None = None
     pdftoppm: Path | None = None
+    ocr: OcrConfig | None = None
 
 
 class PairErrorCode(StrEnum):

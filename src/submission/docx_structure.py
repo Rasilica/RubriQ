@@ -22,11 +22,13 @@ from submission.docx_structure_types import (
     REL,
     STRUCTURAL_CHILDREN,
     UNSUPPORTED,
+    FigureRef,
     ParagraphText,
     PendingReference,
     RegionPosition,
     StructureResult,
     child_paths,
+    figure_of,
     node_name,
     node_segment,
 )
@@ -58,7 +60,7 @@ class _Reader:
     def block(
         self,
         path: str,
-        kind: Literal["paragraph", "table_cell", "header", "footer", "footnote"],
+        kind: Literal["paragraph", "table_cell", "header", "footer", "footnote", "figure"],
         parent: BlockId | None,
         order: int,
         text: ParagraphText = EMPTY_TEXT,
@@ -83,7 +85,7 @@ class _Reader:
             reading_order=order,
         )
 
-    def inline(
+    def inline(  # noqa: PLR0911
         self,
         node: Element,
         path: str,
@@ -138,6 +140,9 @@ class _Reader:
                 else (self.warning(path, invalid=True),)
             )
             return ParagraphText(text, (span,), warnings)
+        figure = figure_of(node, path) if paragraph is not None else None
+        if figure is not None:
+            return ParagraphText(figures=(figure,))
         formatting = properties or name in PROPERTIES
         if (
             name in UNSUPPORTED
@@ -163,8 +168,40 @@ class _Reader:
                 result.spans + scanned.spans,
                 result.warnings + scanned.warnings + tail,
                 result.references + scanned.references,
+                result.figures + scanned.figures,
             )
         return result
+
+    def figure(
+        self, figure: FigureRef, parent: BlockId | None, order: int, before: StructureResult
+    ) -> StructureResult:
+        container = self.block(figure.path, "figure", parent, order)
+        warnings = (
+            (
+                DocumentDiagnostic(
+                    code="figure_content_unread",
+                    page_number=None,
+                    source_locator=self.locator(figure.path),
+                ),
+            )
+            if figure.has_picture
+            else ()
+        )
+        result = StructureResult((container,), warnings)
+        for content, content_path in figure.contents:
+            scanned = self.structure(
+                content, content_path, container.block_id, order + len(result.blocks)
+            )
+            result = StructureResult(
+                result.blocks + scanned.blocks,
+                result.warnings + scanned.warnings,
+                result.references + scanned.references,
+            )
+        return StructureResult(
+            before.blocks + result.blocks,
+            before.warnings + result.warnings,
+            before.references + result.references,
+        )
 
     def structure(
         self, node: Element, path: str, parent: BlockId | None, order: int
@@ -172,11 +209,15 @@ class _Reader:
         name = node_name(node)
         if name == "p":
             text = self.inline(node, path, self.identity(path))
-            return StructureResult(
+            result = StructureResult(
                 (self.block(path, "paragraph", parent, order, text),),
                 text.warnings,
                 text.references,
             )
+            # Figures follow their paragraph (no mid-paragraph split) with the same parent.
+            for figure in text.figures:
+                result = self.figure(figure, parent, order + len(result.blocks), result)
+            return result
         if name in PROPERTIES | MARKERS:
             text = self.inline(node, path, None, properties=True)
             return StructureResult(warnings=text.warnings, references=text.references)

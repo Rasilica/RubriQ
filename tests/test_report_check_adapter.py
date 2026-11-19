@@ -29,4 +29,3 @@ def test_request_when_prepared_exposes_exact_submitted_scope():
     assert tuple(block.block_id for block in request.blocks) == tuple(
         payload(ctx)["reviewed_block_ids"]
     )
-    assert request.criteria_sha256 == payload(ctx)["criteria_sha256"]

@@ -14,6 +14,7 @@ from submission.pair_contracts import PreparedRole, RoleView
 from submission.pair_store import PairStore
 from submission.semantic_client import PROVIDER_TIMEOUT
 from submission.semantic_service import CHECK_LIMITS, REQUIREMENT_LIMITS
+from submission.semantic_service import context as real_context
 
 
 @pytest.fixture
@@ -53,16 +54,12 @@ def setup():
 
 def provider_response(_request, _instructions, raw, _key):
     data = json.loads(raw)
-    if "criteria_sha256" not in data:
+    if "expected_items" not in data:
         return TextCompletion(suggestion=json.dumps(response_payload()))
     return TextCompletion(
         suggestion=json.dumps(
             {
                 "schema_version": "1",
-                "criteria_sha256": data["criteria_sha256"],
-                "report_source_id": data["report_source_id"],
-                "report_document_version_id": data["report_document_version_id"],
-                "report_source_sha256": data["report_source_sha256"],
                 "reviewed_block_ids": [block["block_id"] for block in data["blocks"]],
                 "items": [
                     {
@@ -194,13 +191,11 @@ def test_no_provider_call_when_request_invalid(setup, overrides):
     call.assert_not_called()
 
 
-@pytest.mark.parametrize("bad", ["not json", "quote", "source"])
+@pytest.mark.parametrize("bad", ["not json", "quote"])
 def test_no_state_when_provider_json_or_citation_invalid(setup, bad):
     payload = response_payload()
     if bad == "quote":
         payload["requirements"][0]["citations"][0]["quote"] = "hallucinated"
-    if bad == "source":
-        payload["source_sha256"] = "0" * 64
     with patch(
         "submission.semantic_service.complete",
         return_value=TextCompletion(
@@ -397,14 +392,11 @@ def test_late_check_discarded_when_criteria_changes(setup):
     assert response.status_code == 409
 
 
-def test_guide_over_budget_rejected_without_provider_call(setup):
-
-    _, _, session, _, _ = setup
-    count = len(session.guide.view.document.blocks)
+def test_guide_with_unsendable_block_rejected_without_provider_call(setup):
     with (
         patch(
             "submission.semantic_service.REQUIREMENT_LIMITS",
-            REQUIREMENT_LIMITS.model_copy(update={"max_blocks": count - 1}),
+            REQUIREMENT_LIMITS.model_copy(update={"max_input_characters": 1}),
         ),
         patch("submission.semantic_service.complete") as call,
     ):
@@ -485,3 +477,147 @@ def test_no_provider_call_when_session_expires_before_call_could_finish(setup):
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "ai_session_expiring"
     assert call.call_count == 0
+
+
+def test_billing_ai_call_refused_when_session_ends_before_its_longer_timeout(setup):
+    *_, now = setup
+    now[0] = 600 - 200  # 200 s left: enough for PROVIDER_TIMEOUT, not for the billing timeout
+
+    with patch("submission.semantic_service.complete") as call:
+        response = extract(setup, provider="billingai")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "ai_session_expiring"
+    assert call.call_count == 0
+
+
+def test_direct_provider_call_proceeds_with_200_seconds_left(setup):
+    *_, now = setup
+    now[0] = 600 - 200
+
+    with patch("submission.semantic_service.complete", side_effect=provider_response) as call:
+        response = extract(setup)
+
+    assert response.status_code == 200
+    assert call.call_count >= 1
+
+
+def _padded_context(real_context):
+    def wrapper(session, state):
+        ctx = real_context(session, state)
+
+        def pad(document):
+            empties = tuple(
+                document.blocks[0].model_copy(update={"block_id": f"empty-{i}", "raw_text": " "})
+                for i in range(5)
+            )
+            return document.model_copy(update={"blocks": (*document.blocks, *empties)})
+
+        return ctx.model_copy(update={"guide": pad(ctx.guide), "report": pad(ctx.report)})
+
+    return wrapper
+
+
+def test_combined_block_budget_ignores_empty_blocks(setup):
+    with patch("submission.semantic_service.complete", side_effect=provider_response):
+        draft = confirm(setup, extract(setup).json()["data"]).json()["data"]
+    _, _, session, _, _ = setup
+    docs = (session.guide.view.document, session.report.view.document)
+    sent = sum(1 for d in docs for b in d.blocks if b.raw_text.strip())
+    # Over the block cap the report is now split into two calls instead of rejected.
+    for budget, expected_calls in ((sent, 1), (sent - 1, 2)):
+        with (
+            patch("submission.semantic_service.context", _padded_context(real_context)),
+            patch(
+                "submission.semantic_service.CHECK_LIMITS",
+                CHECK_LIMITS.model_copy(update={"max_blocks": budget}),
+            ),
+            patch(
+                "submission.semantic_service.complete", side_effect=provider_response
+            ) as call,
+        ):
+            assert check(setup, draft).status_code == 200
+            assert call.call_count == expected_calls
+
+
+def _with_blocks(document, count, text="짧은 문단"):
+    extra = tuple(
+        document.blocks[0].model_copy(update={"block_id": f"bulk-{i}", "raw_text": f"{text} {i}"})
+        for i in range(count)
+    )
+    return document.model_copy(update={"blocks": (*document.blocks, *extra)})
+
+
+def test_guide_with_hundreds_of_short_blocks_is_accepted(setup):
+    guide = _with_blocks(setup[2].guide.view.document, 450)
+    with (
+        patch("submission.semantic_service.document", return_value=guide),
+        patch("submission.semantic_service.complete", side_effect=provider_response) as call,
+    ):
+        response = extract(setup)
+    assert response.status_code == 200
+    assert call.call_count == 1
+
+
+def test_guide_over_character_budget_still_rejected_without_call(setup):
+    guide = _with_blocks(setup[2].guide.view.document, 1, text="가" * 20001)
+    with (
+        patch("submission.semantic_service.document", return_value=guide),
+        patch("submission.semantic_service.complete") as call,
+    ):
+        response = extract(setup)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "ai_input_limit"
+    call.assert_not_called()
+
+
+def test_check_with_1500_short_blocks_is_accepted(setup):
+    with patch("submission.semantic_service.complete", side_effect=provider_response):
+        draft = confirm(setup, extract(setup).json()["data"]).json()["data"]
+
+    def bulky(session, state):
+        ctx = real_context(session, state)
+        return ctx.model_copy(
+            update={
+                "guide": _with_blocks(ctx.guide, 750),
+                "report": _with_blocks(ctx.report, 750),
+            }
+        )
+
+    with (
+        patch("submission.semantic_service.context", bulky),
+        patch("submission.semantic_service.complete", side_effect=provider_response) as call,
+    ):
+        response = check(setup, draft)
+    assert response.status_code == 200
+    assert call.call_count == 1
+
+
+def test_check_over_character_budget_still_rejected_without_call(setup):
+    with patch("submission.semantic_service.complete", side_effect=provider_response):
+        draft = confirm(setup, extract(setup).json()["data"]).json()["data"]
+
+    def huge(session, state):
+        ctx = real_context(session, state)
+        return ctx.model_copy(update={"report": _with_blocks(ctx.report, 1, text="가" * 60001)})
+
+    with (
+        patch("submission.semantic_service.context", huge),
+        patch("submission.semantic_service.complete") as call,
+    ):
+        response = check(setup, draft)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "ai_input_limit"
+    call.assert_not_called()
+
+
+def test_requirement_request_does_not_ask_model_for_identity(setup):
+    with patch("submission.semantic_service.complete", side_effect=provider_response) as call:
+        assert extract(setup).status_code == 200
+    _request, instructions, payload, _key = call.call_args.args
+    sent = json.loads(payload)
+    assert not {"source_id", "document_version_id", "source_sha256"} & sent.keys()
+    schema = json.loads(sent["response_schema_json"])
+    assert not {"source_id", "document_version_id", "source_sha256"} & schema["properties"].keys()
+    assert "해시" not in instructions
+    assert "식별자" not in instructions

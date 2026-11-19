@@ -1,10 +1,10 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal, NewType, Self
+from typing import Annotated, ClassVar, Literal, NewType, Self
 
 from pydantic import Field, computed_field, model_validator
 
-from submission.models import DocumentRole, FrozenModel
+from submission.models import DocumentRole, FrozenModel, OptionalFieldsModel
 
 SourceId = NewType("SourceId", str)
 ArtifactId = NewType("ArtifactId", str)
@@ -88,9 +88,29 @@ class DocumentSource(FrozenModel):
     document_version_id: str
 
 
-class DocumentBlock(FrozenModel):
+class OcrBlockInfo(FrozenModel):
+    """Machine-recognised text from an image; the text may contain mistakes."""
+
+    confidence: Annotated[float, Field(ge=0, le=1)]
+    # Normalized x, y, width, height of the line on its page; origin at the top left.
+    box: tuple[float, float, float, float]
+    page_number: PageNumber
+
+
+class DocumentBlock(OptionalFieldsModel):
+    omit_when_default: ClassVar[tuple[str, ...]] = ("ocr",)
+
     block_id: BlockId
-    kind: Literal["extraction_block", "paragraph", "table_cell", "footnote", "header", "footer"]
+    kind: Literal[
+        "extraction_block",
+        "paragraph",
+        "table_cell",
+        "footnote",
+        "header",
+        "footer",
+        "figure",
+        "ocr_line",
+    ]
     raw_text: str
     normalized_text: str
     normalization_version: str
@@ -103,11 +123,13 @@ class DocumentBlock(FrozenModel):
         "docx_paragraph_unicode",
         "hwpx_paragraph_unicode",
         "hwp_paragraph_unicode",
+        "ocr_unicode",
     ]
     source_fragment_index: Annotated[int, Field(gt=0)] | None = None
     source_spans: tuple[SourceTextSpan, ...] = ()
     parent_block_id: BlockId | None = None
     reading_order: Annotated[int, Field(ge=0)]
+    ocr: OcrBlockInfo | None = None  # set only for "ocr_line"
 
 
 class ToolDescriptor(FrozenModel):
@@ -135,10 +157,12 @@ class DocumentDiagnostic(FrozenModel):
         "extraction_error",
         "parser_warning",
         "unsupported_element",
+        "figure_content_unread",
         "unsupported_part",
         "invalid_reference",
         "invalid_structure",
         "empty_content",
+        "ocr_text_used",
     ]
     page_number: PageNumber | None
     source_locator: SourceLocator | None = None
@@ -181,7 +205,13 @@ class EvidenceMapping(FrozenModel):
     target_text_ranges: tuple[ArtifactTextRange, ...]
     original_page_numbers: tuple[PageNumber, ...] | None
     mapping_status: Literal[
-        "identity", "verified_anchor", "verified_original", "ambiguous", "unmapped", "mismatch"
+        "identity",
+        "verified_anchor",
+        "verified_original",
+        "ocr_page",
+        "ambiguous",
+        "unmapped",
+        "mismatch",
     ]
     verification_method: str | None = None
     verified_by: str | None = None

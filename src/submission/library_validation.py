@@ -18,16 +18,31 @@ from submission.hwpx_contract_validation import (
     validate_hwpx_document,
 )
 from submission.library_contracts import LibraryCode, LibraryError
-from submission.models import DocumentRole
+from submission.models import MAX_DOCUMENT_PAGES, DocumentRole
 from submission.pair_contracts import PairRuntime, PreparedRole
 
 MAX_BLOCKS: Final = 10_000
-MAX_PAGES: Final = 50
+MAX_PAGES: Final = MAX_DOCUMENT_PAGES
 
 
 def check(*conditions: bool) -> None:
     if not all(conditions):
         raise LibraryError(LibraryCode.CORRUPT)
+
+
+def without_ocr(document: CommonDocument) -> CommonDocument:
+    return document.model_copy(
+        update={
+            "blocks": tuple(block for block in document.blocks if block.kind != "ocr_line"),
+            "mappings": tuple(m for m in document.mappings if m.mapping_status != "ocr_page"),
+        }
+    )
+
+
+def check_ocr_blocks(document: CommonDocument) -> None:
+    for block in document.blocks:
+        check((block.kind == "ocr_line") == (block.ocr is not None))
+        check(block.kind != "ocr_line" or block.raw_coordinate_basis == "ocr_unicode")
 
 
 def structure(document: CommonDocument) -> None:
@@ -40,15 +55,17 @@ def structure(document: CommonDocument) -> None:
         check(
             block.parent_block_id is None or (parent is not None and parent.reading_order < order)
         )
+    check_ocr_blocks(document)
+    base = without_ocr(document)  # OCR lines are not part of the format-specific structure
     match document.source.detected_format:
         case "docx":
-            _ = validate_docx_document(document)
+            _ = validate_docx_document(base)
         case "hwpx":
-            _ = validate_hwpx_document(document)
+            _ = validate_hwpx_document(base)
         case "hwp":
             check(document.coverage.scope == "hwp5_structure")
-            validate_fragment_sequence(document.blocks)
-            for block in document.blocks:
+            validate_fragment_sequence(base.blocks)
+            for block in base.blocks:
                 validate_spans(block, document.source)
                 check(block.block_id == expected_identity(block, document.source))
                 check(block.raw_coordinate_basis == "hwp_paragraph_unicode")
@@ -133,6 +150,8 @@ def environment(runtime: PairRuntime) -> tuple[str, ...]:
         labels = (*labels, f"docx-soffice:{binary_identity(runtime.docx.soffice)}")
     if runtime.pdftoppm is not None:
         labels = (*labels, f"pdf-renderer:{binary_identity(runtime.pdftoppm)}")
+    if runtime.ocr is not None:
+        labels = (*labels, f"ocr-helper:{runtime.ocr.sha256}")
     if runtime.hwp is not None:
         provision = runtime.hwp.provision
         labels = (

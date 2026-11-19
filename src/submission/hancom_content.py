@@ -12,6 +12,8 @@ from submission.conversion_contracts import ConversionError, ConversionErrorCode
 HANCOM_HEADER_SCRIPT = (
     "var Documents = XHwpDocuments; var Document = Documents.Active_XHwpDocument;"
 )
+# Font declarations; isEmbedded="0" there names a system font and loads no file.
+FONT_DECLARATIONS = frozenset({"font", "substfont"})
 EMPTY_HANDLERS = re.compile(r"(?:function \w+\(\) ?\{ ?\} ?)*")
 
 
@@ -23,6 +25,7 @@ def is_hancom_default_script(name: str, data: bytes) -> bool:
         return False
     # JavaScript also ends a line comment at U+2028/U+2029; stop there so no code hides.
     code = " ".join(re.sub(r"//[^\r\n\u2028\u2029]*", "", text).split())
+    code = re.sub(r"\s*;\s*", "; ", code).strip()  # Hancom 2018 omits the space after ";"
     match name:
         case "Scripts/headerScripts":
             return code == HANCOM_HEADER_SCRIPT
@@ -93,7 +96,7 @@ def reject_hwpx_active_content(content: bytes) -> None:
                     if (
                         (attribute == "targetmode" and value.lower() == "external")
                         or (
-                            local != "font"
+                            local not in FONT_DECLARATIONS
                             and attribute in {"isembeded", "isembedded"}
                             and value.lower() not in {"1", "true"}
                         )

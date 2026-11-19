@@ -19,7 +19,7 @@ PARA_NS: Final = "http://www.hancom.co.kr/hwpml/2011/paragraph"
 SECTION_NS: Final = "http://www.hancom.co.kr/hwpml/2011/section"
 HEAD_NS: Final = "http://www.hancom.co.kr/hwpml/2011/head"
 type StoryKind = Literal["footnote", "header", "footer"]
-type BlockKind = Literal["paragraph", "table_cell", "footnote", "header", "footer"]
+type BlockKind = Literal["paragraph", "table_cell", "footnote", "header", "footer", "figure"]
 type TextBasis = Literal[
     "source_node_unicode", "source_node_tail_unicode", "synthetic_control_unicode"
 ]
@@ -95,9 +95,11 @@ class SourceContext:
             original_page_number=None,
         )
 
-    def warning(self, path: str, *, invalid: bool = False) -> DocumentDiagnostic:
+    def warning(
+        self, path: str, *, invalid: bool = False, code: str | None = None
+    ) -> DocumentDiagnostic:
         return DocumentDiagnostic(
-            code="invalid_structure" if invalid else "unsupported_element",
+            code=code or ("invalid_structure" if invalid else "unsupported_element"),
             page_number=None,
             source_locator=self.locator(path),
         )

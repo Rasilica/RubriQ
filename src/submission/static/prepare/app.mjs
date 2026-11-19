@@ -9,6 +9,7 @@ import {createExpressionCheck,expressionSelection,textareaRange} from './express
 import {createOllamaRequest,ollamaSelection,validateOllamaModels,validateOllamaRewrite} from './ollama.mjs';
 import {ROLES,STATUS,KINDS,createResources,initialSelection,selectBlock,selectPage,unicodeRange,mappingMatches,warningText,errorText as preparationErrorText} from './state.mjs';
 import {renderMappingResult} from './mapping.mjs';
+const LOW_OCR_CONFIDENCE=0.5;
 import {STEPS,reachableStep,clampStep} from './wizard.mjs';
 import {locationLabel,omittedSummary} from './location.mjs';
 import {resultCounts} from './semantic-view.mjs';
@@ -146,6 +147,8 @@ function renderStructure(){
   structure.append(element('p','',doc.source.filename));
   // One plain sentence instead of separate layout/font/page warnings that say the same thing.
   if(doc.source.detected_format!=='pdf'||entry.warnings.length)structure.append(notice(doc.source.detected_format==='pdf'?entry.warnings.map(warningText).join(' '):'미리보기 PDF는 원본과 줄바꿈·쪽 나눔·글꼴이 다를 수 있어, "10쪽 이내" 같은 쪽수 조건은 판정하지 않습니다.'));
+  const ocrNotice=entry.warnings.filter(code=>code.startsWith('ocr_')).map(warningText).join(' ');
+  if(ocrNotice&&doc.source.detected_format!=='pdf')structure.append(notice(ocrNotice));
   const blocks=doc.blocks;let index=blocks.findIndex(block=>block.block_id===selection[role].block);if(index<0)index=0;
   const block=blocks[index];
   if(block){
@@ -161,7 +164,9 @@ function renderStructure(){
     const label=element('label','','읽은 원문 · 문구를 선택하면 PDF에서 찾을 수 있습니다');label.htmlFor='source-text';
     const text=element('textarea','control source-text');text.id='source-text';text.readOnly=true;text.value=block.raw_text;
     structure.append(label,text);
-    if(!block.raw_text)structure.append(notice('이 조각은 표 칸처럼 다른 내용을 묶는 자리라 글자가 없습니다. 다음 조각에서 내용을 확인하세요.'));
+    if(block.kind==='ocr_line')structure.append(notice(`글자 인식(오류 가능) · 이미지에서 기계가 읽은 글자입니다${block.ocr?.confidence<LOW_OCR_CONFIDENCE?' · 신뢰도 낮음':''}. 원본과 비교해 확인하세요.`,block.ocr?.confidence<LOW_OCR_CONFIDENCE));
+    else if(block.kind==='figure')structure.append(notice('원문에서 그림이 있는 위치입니다. 그림 내용은 읽지 못했고, 캡션이 있으면 다음 조각에 문단으로 나옵니다.'));
+    else if(!block.raw_text)structure.append(notice('이 조각은 표 칸처럼 다른 내용을 묶는 자리라 글자가 없습니다. 다음 조각에서 내용을 확인하세요.'));
     const actions=element('div','cluster');
     const selected=button('선택한 문구 PDF에서 찾기',()=>{
       try{const range=unicodeRange(text.value,text.selectionStart,text.selectionEnd);void mapQuote(block,range);}

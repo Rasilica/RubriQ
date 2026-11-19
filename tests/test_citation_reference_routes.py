@@ -24,7 +24,7 @@ def test_billing_reference_citation_on_actual_report_route(semantic_setup):
         body = json.loads(connection.request.call_args.kwargs["body"])
         outgoing = json.loads(body["input"])
         response = json.loads(provider_response(None, None, body["input"], None).suggestion)
-        if "report_source_id" in outgoing:
+        if "expected_items" in outgoing:
             block = outgoing["blocks"][0]
             response["items"][0]["evidence"] = [
                 {
@@ -126,7 +126,7 @@ def test_invalid_reference_or_scope_is_rejected_without_committing_result(semant
         body = json.loads(connection.request.call_args.kwargs["body"])
         outgoing = json.loads(body["input"])
         response = json.loads(provider_response(None, None, body["input"], None).suggestion)
-        if "report_source_id" in outgoing:
+        if "expected_items" in outgoing:
             citation = {"citation_ref": "not-submitted" if failure == "unknown" else "q0"}
             if failure == "extra":
                 citation = {**citation, "quote": "untrusted"}

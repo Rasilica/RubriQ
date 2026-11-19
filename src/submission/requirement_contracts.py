@@ -1,7 +1,7 @@
 from enum import StrEnum
-from typing import Annotated, Final, Literal, NewType, Self
+from typing import Annotated, Any, ClassVar, Final, Literal, NewType, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, SerializerFunctionWrapHandler, model_serializer, model_validator
 
 from submission.document_contracts import (
     BlockId,
@@ -13,7 +13,7 @@ from submission.document_contracts import (
     SourceLocator,
     StructuralCoverage,
 )
-from submission.models import FrozenModel
+from submission.models import FrozenModel, OptionalFieldsModel
 
 RequirementId = NewType("RequirementId", str)
 SubconditionId = NewType("SubconditionId", str)
@@ -93,18 +93,26 @@ type RequirementInput = Annotated[
 ]
 
 
-class RequirementResponse(FrozenModel):
+class RequirementModelResponse(FrozenModel):
+    """What the model returns; the server owns the guide identity."""
+
     schema_version: Literal["1"]
-    source_id: Annotated[SourceId, Field(min_length=1, max_length=200)]
-    document_version_id: Annotated[str, Field(min_length=1, max_length=200)]
-    source_sha256: Sha256
     requirements: Annotated[tuple[RequirementInput, ...], Field(max_length=100)]
 
 
-class VerifiedCitation(CitationInput):
+class RequirementResponse(RequirementModelResponse):
+    source_id: Annotated[SourceId, Field(min_length=1, max_length=200)]
+    document_version_id: Annotated[str, Field(min_length=1, max_length=200)]
+    source_sha256: Sha256
+
+
+class VerifiedCitation(CitationInput, OptionalFieldsModel):
+    omit_when_default: ClassVar[tuple[str, ...]] = ("from_ocr",)
+
     source_locator: SourceLocator
     coordinate_basis: Literal["block_raw_unicode"] = "block_raw_unicode"
     verification: Literal["exact_quote"] = "exact_quote"
+    from_ocr: bool = False  # quote is machine-recognised image text, not an exact source quote
 
 
 class RequirementItem(RequirementFields[VerifiedCitation]):
@@ -142,17 +150,36 @@ class RequirementDraft(FrozenModel):
     stored: Literal[False] = False
 
 
+FIGURE_INSTRUCTION: Final = (
+    "kind가 figure인 블록은 원문에서 그림이 있는 위치이며 글자가 없습니다. "
+    "그림이 있다는 것만 알 수 있고 내용은 볼 수 없으니 그림 내용을 단정하지 말고, "
+    "그림이 없다고 판단하지 마세요. 캡션처럼 글로 확인되는 근거만 인용하고 "
+    "figure 블록은 인용하지 마세요. "
+)
+
+
+OCR_INSTRUCTION: Final = (
+    "kind가 ocr인 블록은 이미지에서 기계가 읽은 글자라 오탈자가 있을 수 있습니다. "
+    "인용은 가능하지만 인식 결과이므로 표기가 어색하면 확인 필요로 판단하세요. "
+)
+
+
 class RequestBlock(FrozenModel):
     block_id: BlockId
     raw_text: str
+    kind: str | None = None  # set only for "figure"/"ocr" so every other block serializes as before
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_kind(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data = handler(self)
+        if data.get("kind") is None:
+            data.pop("kind", None)
+        return data
 
 
 class RequirementRequest(FrozenModel):
     prompt_version: Literal["1"] = "1"
     schema_version: Literal["1"] = "1"
-    source_id: SourceId
-    document_version_id: str
-    source_sha256: Sha256
     instructions: str
     response_schema_json: str
     blocks: tuple[RequestBlock, ...]

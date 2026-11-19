@@ -6,13 +6,13 @@ from submission.models import FrozenModel
 
 type HwpPath = Annotated[
     str,
-    Field(pattern=r"^BodyText/Section[0-9]+(?:/(?:paragraph|control|row|cell|char)\[[0-9]+\])*$"),
+    Field(pattern=r"^BodyText/Section[0-9]+(?:/(?:paragraph|control|row|cell|char)\[[0-9]+\]|/textbox)*$"),
 ]
 
 
 class HwpNode(FrozenModel):
     path: HwpPath
-    kind: Literal["paragraph", "table_cell", "footnote", "header", "footer"]
+    kind: Literal["paragraph", "table_cell", "footnote", "header", "footer", "figure"]
     text: str
     parent: HwpPath | None
     fragment: Annotated[int, Field(gt=0)] | None

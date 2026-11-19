@@ -3,7 +3,7 @@ import json
 import pytest
 
 from submission.citation_reference_wire import reference_wire
-from submission.report_check_contracts import ReportCheckResponse
+from submission.report_check_contracts import ReportCheckModelResponse
 from submission.semantic_wire import WireDocument
 
 
@@ -13,7 +13,7 @@ def request(text="한글🙂 문구", **overrides):
             "report_source_id": "source",
             "report_source_sha256": "a" * 64,
             "expected_items": [{"requirement_id": "r0", "subcondition_ids": []}],
-            "response_schema_json": json.dumps(ReportCheckResponse.model_json_schema()),
+            "response_schema_json": json.dumps(ReportCheckModelResponse.model_json_schema()),
             "blocks": [{"block_id": "original/paragraph", "raw_text": text}],
             **overrides,
         }
@@ -107,7 +107,7 @@ def test_long_blocks_use_bounded_contiguous_unicode_chunks_without_duplicate_tex
 @pytest.mark.parametrize(
     "overrides",
     [
-        {"report_source_id": None},
+        {"expected_items": None},
         {"response_schema_json": "{}"},
         {"response_schema_json": "invalid"},
         {"response_schema_json": None},

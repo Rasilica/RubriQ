@@ -29,7 +29,17 @@ def test_only_reviewed_files_are_exported_and_originals_are_preserved(tmp_path: 
         assert zipped.read("RubriQ/src/app.py") == (root / "src/app.py").read_bytes()
 
 
-@pytest.mark.parametrize("entry", ["../secret", "/etc/passwd", "src/../README.md", ".env"])
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "../secret",
+        "/etc/passwd",
+        "src/../README.md",
+        ".env",
+        "samples/private/os/report.docx",
+        "_workspace/test-corpus/rules.tsv",
+    ],
+)
 def test_unsafe_manifest_entries_are_rejected(tmp_path: Path, entry: str) -> None:
     with pytest.raises(ValueError, match="Unsafe public path"):
         public_files(project(tmp_path, entry))

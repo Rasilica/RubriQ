@@ -15,6 +15,7 @@ PRIVATE_PARTS: Final = frozenset(
         "__pycache__",
         "contest",
         "java",
+        "private",  # samples/private: redacted real documents, internal tests only
         "_workspace",
     }
 )

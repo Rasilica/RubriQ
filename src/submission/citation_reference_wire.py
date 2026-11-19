@@ -8,7 +8,7 @@ from pydantic import JsonValue, TypeAdapter, ValidationError
 
 from submission import semantic_diagnostics as diagnostics
 from submission.cloud_contracts import CloudCode, CloudError
-from submission.report_check_contracts import ReportCheckResponse
+from submission.report_check_contracts import ReportCheckModelResponse
 from submission.semantic_wire import MAX_OUTPUT_BYTES, WireDocument, wire_document
 
 MAX_WHOLE_BLOCK: Final = 10_000
@@ -45,7 +45,7 @@ class ReferenceWire:
     def prepare(self, payload: str) -> str:
         value = TypeAdapter(dict[str, JsonValue]).validate_json(self.document.prepare(payload))
         schema = TypeAdapter(dict[str, JsonValue]).validate_python(
-            ReportCheckResponse.model_json_schema()
+            ReportCheckModelResponse.model_json_schema()
         )
         definitions = schema.get("$defs")
         match definitions:
@@ -135,12 +135,12 @@ def reference_wire(payload: str) -> ReferenceWire | WireDocument:
     document = wire_document(payload)
     value = TypeAdapter[JsonValue](JsonValue).validate_json(payload)
     match value:
-        case {"report_source_id": str(), "response_schema_json": str(schema)}:
+        case {"expected_items": list(), "response_schema_json": str(schema)}:
             try:
                 parsed = TypeAdapter[JsonValue](JsonValue).validate_json(schema)
             except ValidationError:
                 return document
-            if parsed != ReportCheckResponse.model_json_schema():
+            if parsed != ReportCheckModelResponse.model_json_schema():
                 return document
         case _:
             return document

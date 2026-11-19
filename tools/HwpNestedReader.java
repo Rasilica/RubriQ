@@ -6,9 +6,13 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import kr.dogfoot.hwplib.object.HWPFile;
 import kr.dogfoot.hwplib.object.bodytext.ParagraphListInterface;
 import kr.dogfoot.hwplib.object.bodytext.control.*;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.*;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.caption.Caption;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.textbox.TextBox;
 import kr.dogfoot.hwplib.object.bodytext.control.table.Cell;
 import kr.dogfoot.hwplib.object.bodytext.paragraph.Paragraph;
 import kr.dogfoot.hwplib.object.bodytext.paragraph.text.*;
@@ -19,6 +23,13 @@ public class HwpNestedReader {
     private static final int MAX_BLOCKS = 10000;
     private static final int MAX_DEPTH = 64;
     private static final int MAX_BYTES = 4 * 1024 * 1024;
+    // Layout/metadata controls with no body text of their own. Hyperlink display text is read
+    // as ordinary paragraph characters between the field start and its end marker (inline 4).
+    private static final Set<ControlType> INERT_CONTROLS = Set.of(
+        ControlType.SectionDefine, ControlType.ColumnDefine, ControlType.PageNumberPosition,
+        ControlType.NewNumber, ControlType.PageHide, ControlType.PageOddEvenAdjust,
+        ControlType.Bookmark, ControlType.IndexMark, ControlType.FIELD_HYPERLINK);
+    private static final int FIELD_END_CODE = 4;
     private final List<String> nodes = new ArrayList<>();
     private final List<String> omitted = new ArrayList<>();
     private final List<String> references = new ArrayList<>();
@@ -77,7 +88,7 @@ public class HwpNestedReader {
     }
 
     private void table(ControlTable table, String path, String parent, int depth) throws Exception {
-        if (table.getCaption() != null) omit(path);
+        caption(table.getCaption(), path, parent, depth);
         for (int row = 0; row < table.getRowList().size(); row++) {
             List<Cell> cells = table.getRowList().get(row).getCellList();
             for (int cell = 0; cell < cells.size(); cell++) {
@@ -90,6 +101,28 @@ public class HwpNestedReader {
                 paragraphs(cells.get(cell).getParagraphList(), current, current, depth + 1);
             }
         }
+    }
+
+    private void caption(Caption caption, String path, String parent, int depth)
+            throws Exception {
+        if (caption != null) paragraphs(caption.getParagraphList(), path, parent, depth + 1);
+    }
+
+    private static TextBox textBox(GsoControl gso) {
+        if (gso instanceof ControlRectangle shape) return shape.getTextBox();
+        if (gso instanceof ControlEllipse shape) return shape.getTextBox();
+        if (gso instanceof ControlArc shape) return shape.getTextBox();
+        if (gso instanceof ControlPolygon shape) return shape.getTextBox();
+        if (gso instanceof ControlCurve shape) return shape.getTextBox();
+        return null;
+    }
+
+    private void figure(GsoControl gso, String path, String parent, int depth) throws Exception {
+        if (!room(path, depth)) return;
+        node(path, "figure", "", parent, null, 0);
+        caption(gso.getCaption(), path, path, depth);
+        TextBox box = textBox(gso);
+        if (box != null) paragraphs(box.getParagraphList(), path + "/textbox", path, depth + 1);
     }
 
     private void story(ParagraphListInterface list, String kind, String path, String parent,
@@ -112,7 +145,8 @@ public class HwpNestedReader {
             story(header.getParagraphList(), "header", path, parent, owner, fragment, offset, depth);
         } else if (control instanceof ControlFooter footer) {
             story(footer.getParagraphList(), "footer", path, parent, owner, fragment, offset, depth);
-        } else omit(path);
+        } else if (control instanceof GsoControl gso) figure(gso, path, parent, depth);
+        else if (!INERT_CONTROLS.contains(control.getType())) omit(path);
     }
 
     private static boolean matches(HWPCharControlExtend character, Control control) {
@@ -159,7 +193,7 @@ public class HwpNestedReader {
             else if (character.getCode() == 10) text.append('\n');
             else if (character.getCode() == 30) text.append('\u00a0');
             else if (character.getCode() == 31) text.append('\u2007');
-            else if (character.getCode() != 13) omit(path + "/char[" + index + "]");
+            else if (character.getCode() != 13 && character.getCode() != FIELD_END_CODE) omit(path + "/char[" + index + "]");
             if (text.length() > MAX_BYTES) throw new OutputLimit();
         }
         if (room(path, depth)) node(path, "paragraph", text.toString(), parent, fragment, start);

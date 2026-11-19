@@ -55,17 +55,9 @@ def _invoke[T](action: Callable[[], T]) -> PairEnvelope[T] | JSONResponse:
     except ReviewError as error:
         code, status = str(error.code), error.status_code
     except (RequirementError, ReportCheckError) as error:
-        if isinstance(error, ReportCheckError):
-            diagnostics.contract_failure(error.code)
+        diagnostics.contract_failure(error.code)
         code, status = "ai_" + str(error.code), 422
         include_diagnostic = True
-        if diagnostics.TRACE.get() is not None:
-            diagnostics.mark(
-                "report_validation",
-                "citation_invalid"
-                if str(error.code) == "invalid_citation"
-                else "report_contract_invalid",
-            )
     except ValidationError:
         code, status = "ai_invalid_response", 502
         include_diagnostic = True

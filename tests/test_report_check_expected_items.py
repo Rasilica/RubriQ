@@ -8,9 +8,10 @@ from submission.report_check_adapter import prepare_report_check_request
 from submission.report_check_contracts import (
     ReportCheckError,
     ReportCheckErrorCode,
+    ReportCheckModelResponse,
     ReportCheckResponse,
 )
-from submission.report_check_validation import criteria_fingerprint, validate_response
+from submission.report_check_validation import validate_response
 from submission.semantic_wire import wire_document
 
 
@@ -28,7 +29,6 @@ def mixed_context():
 def test_expected_items_selects_included_applicable_items_and_preserves_order():
     ctx = mixed_context()
     before = ctx.model_dump_json()
-    fingerprint = criteria_fingerprint(ctx)
 
     request = prepare_report_check_request(ctx)
 
@@ -39,8 +39,6 @@ def test_expected_items_selects_included_applicable_items_and_preserves_order():
     ]
     assert request.criteria == ctx.criteria
     assert request.original_requirements == ctx.original_draft.requirements
-    assert request.criteria_sha256 == fingerprint
-    assert request.report_source_sha256 == ctx.report.source.content_sha256
     assert ctx.model_dump_json() == before
     response = ReportCheckResponse.model_validate(payload(ctx))
     validate_response(ctx, response)
@@ -118,11 +116,9 @@ def test_wire_preserves_expected_ids_and_response_contract():
 
     assert prepared["expected_items"] == request.model_dump(mode="json")["expected_items"]
     assert prepared["criteria"] == request.criteria.model_dump(mode="json")
-    assert prepared["criteria_sha256"] == request.criteria_sha256
-    assert prepared["report_source_sha256"] == request.report_source_sha256
     assert prepared["blocks"][0]["block_id"] == "b0"
     schema = json.loads(request.response_schema_json)
-    assert schema == ReportCheckResponse.model_json_schema()
+    assert schema == ReportCheckModelResponse.model_json_schema()
     assert "expected_items" not in schema["properties"]
     assert set(schema["$defs"]["CitationInput"]["properties"]) == {
         "block_id",

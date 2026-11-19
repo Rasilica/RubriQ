@@ -73,13 +73,9 @@ class ExpectedReportItem(FrozenModel):
 class ReportCheckRequest(FrozenModel):
     schema_version: Literal["1"] = "1"
     prompt_version: Literal["1"] = "1"
-    criteria_sha256: Sha256
     criteria: CriteriaVersion
     original_requirements: tuple[RequirementItem, ...]
     expected_items: tuple[ExpectedReportItem, ...]
-    report_source_id: SourceId
-    report_document_version_id: str
-    report_source_sha256: Sha256
     instructions: str
     response_schema_json: str
     blocks: tuple[RequestBlock, ...]

@@ -72,9 +72,69 @@ class ParagraphText:
     spans: tuple[SourceTextSpan, ...] = ()
     warnings: tuple[DocumentDiagnostic, ...] = ()
     references: tuple[PendingReference, ...] = ()
+    figures: tuple["FigureRef", ...] = ()
 
 
 EMPTY_TEXT: Final = ParagraphText()
+
+
+PICTURE: Final = "{http://schemas.openxmlformats.org/drawingml/2006/picture}pic"
+IMAGE_DATA: Final = "{urn:schemas-microsoft-com:vml}imagedata"
+MC: Final = "{http://schemas.openxmlformats.org/markup-compatibility/2006}"
+TEXT_BOX_CONTENT: Final = f"{{{WORD_NS}}}txbxContent"
+
+
+@dataclass(frozen=True, slots=True)
+class FigureRef:
+    """A drawn object: its block path, whether it holds a picture, and its text box roots."""
+
+    path: str
+    has_picture: bool
+    contents: tuple[tuple[Element, str], ...] = ()
+
+
+def _text_boxes(node: Element, path: str) -> Iterator[tuple[Element, str]]:
+    # Nested text boxes belong to their own paragraphs, so do not descend into one.
+    for child, child_path in child_paths(node, path):
+        if child.tag == TEXT_BOX_CONTENT:
+            yield child, child_path
+        else:
+            yield from _text_boxes(child, child_path)
+
+
+def object_figure(node: Element, path: str, *, block_path: str | None = None) -> FigureRef | None:
+    """A w:drawing or w:pict holding a picture or text box; charts and bare shapes stay None."""
+    tags = {child.tag for child in node.iter()}
+    has_picture = PICTURE in tags or IMAGE_DATA in tags
+    contents = tuple(_text_boxes(node, path))
+    if not has_picture and not contents:
+        return None
+    return FigureRef(block_path or path, has_picture, contents)
+
+
+def alternate_figure(node: Element, path: str) -> FigureRef | None:
+    """mc:AlternateContent is one object: Choice wins, Fallback only if Choice has none."""
+    branches = [
+        (child, child_path)
+        for name in ("Choice", "Fallback")
+        for child, child_path in child_paths(node, path)
+        if child.tag == f"{MC}{name}"
+    ]
+    for branch, branch_path in branches:
+        for child, child_path in child_paths(branch, branch_path):
+            if child.tag in {f"{{{WORD_NS}}}drawing", f"{{{WORD_NS}}}pict"}:
+                figure = object_figure(child, child_path, block_path=path)
+                if figure is not None:
+                    return figure
+    return None
+
+
+def figure_of(node: Element, path: str) -> FigureRef | None:
+    if node.tag == f"{MC}AlternateContent":
+        return alternate_figure(node, path)
+    if node.tag in {f"{{{WORD_NS}}}drawing", f"{{{WORD_NS}}}pict"}:
+        return object_figure(node, path)
+    return None
 
 
 def node_name(node: Element) -> str:
@@ -251,4 +311,5 @@ STRUCTURAL_CHILDREN: Final = {
     "tbl": frozenset({"tblPr", "tblGrid", "tr"}),
     "tr": frozenset({"trPr", "tc"}),
     "tc": frozenset({"tcPr", "p", "tbl"}),
+    "txbxContent": frozenset({"p", "tbl"}),
 }

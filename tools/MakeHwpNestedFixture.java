@@ -2,6 +2,9 @@ import kr.dogfoot.hwplib.object.HWPFile;
 import kr.dogfoot.hwplib.object.bodytext.control.*;
 import kr.dogfoot.hwplib.object.bodytext.control.ctrlheader.header.HeaderFooterApplyPage;
 import kr.dogfoot.hwplib.object.bodytext.control.sectiondefine.NumberShape;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.ControlRectangle;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.GsoControl;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.GsoControlType;
 import kr.dogfoot.hwplib.object.bodytext.control.table.Cell;
 import kr.dogfoot.hwplib.object.bodytext.paragraph.Paragraph;
 import kr.dogfoot.hwplib.tool.blankfilemaker.BlankFileMaker;
@@ -63,8 +66,91 @@ public class MakeHwpNestedFixture {
         endnote.getListHeader().setParaCount(1);
     }
 
+    private static void caption(GsoControl picture, String text) throws Exception {
+        picture.createCaption();
+        picture.getCaption().getParagraphList().addParagraph(paragraph(text));
+    }
+
+    private static void figures(HWPFile document) throws Exception {
+        var section = document.getBodyText().getSectionList().get(0);
+        Paragraph root = section.getParagraph(0);
+        root.getText().addString("그림 앞");
+        root.getText().addExtendCharForGSO();
+        caption(root.addNewGsoControl(GsoControlType.Picture), "그림 프론트엔드 대시보드");
+        root.getText().addExtendCharForGSO();
+        root.addNewGsoControl(GsoControlType.Picture);
+        root.getText().addString("그림 뒤");
+        Paragraph table = paragraph("표 문단");
+        table.getText().addExtendCharForTable();
+        ControlTable control = (ControlTable) table.addNewControl(ControlType.Table);
+        control.getTable().setRowCount(1);
+        control.getTable().setColumnCount(1);
+        control.getTable().addCellCountOfRow(1);
+        Cell cell = control.addNewRow().addNewCell();
+        cell.getListHeader().setColSpan(1);
+        cell.getListHeader().setRowSpan(1);
+        cell.getListHeader().setParaCount(1);
+        cell.getParagraphList().addParagraph(paragraph("표 셀 내용"));
+        control.createCaption();
+        control.getCaption().getParagraphList().addParagraph(paragraph("표 성능 지표"));
+        section.insertParagraph(section.getParagraphCount(), table);
+    }
+
+    private static void textboxes(HWPFile document) throws Exception {
+        Paragraph root = document.getBodyText().getSectionList().get(0).getParagraph(0);
+        root.getText().addString("상자 앞");
+        root.getText().addExtendCharForGSO();
+        ControlRectangle box = (ControlRectangle) root.addNewGsoControl(GsoControlType.Rectangle);
+        box.createTextBox();
+        box.getTextBox().getParagraphList().addParagraph(paragraph("상자 안 첫 줄"));
+        box.getTextBox().getParagraphList().addParagraph(paragraph("둘째 줄"));
+        box.getTextBox().getListHeader().setParaCount(2);
+        root.getText().addExtendCharForGSO();
+        root.addNewGsoControl(GsoControlType.Picture);
+        root.getText().addString("상자 뒤");
+    }
+
+    private static void marker(Paragraph owner, int code, String id) throws Exception {
+        var character = owner.getText().addNewExtendControlChar();
+        character.setCode(code);
+        byte[] addition = new byte[12];
+        for (int index = 0; index < 4; index++) addition[index] = (byte) id.charAt(3 - index);
+        character.setAddition(addition);
+    }
+
+    private static void inert(HWPFile document) throws Exception {
+        Paragraph root = document.getBodyText().getSectionList().get(0).getParagraph(0);
+        root.getText().addString("링크 앞");
+        root.getText().addExtendCharForHyperlinkStart();
+        root.addNewControl(ControlType.FIELD_HYPERLINK);
+        root.getText().addString("링크 글자");
+        root.getText().addExtendCharForHyperlinkEnd();
+        marker(root, 21, "pgnp");
+        root.addNewControl(ControlType.PageNumberPosition);
+        marker(root, 21, "nwno");
+        root.addNewControl(ControlType.NewNumber);
+        marker(root, 11, "eqed");
+        root.addNewControl(ControlType.Equation);
+        root.getText().addString("링크 뒤");
+    }
+
     public static void main(String[] args) throws Exception {
         HWPFile document = BlankFileMaker.make();
+        if (args.length > 1 && args[1].equals("inert")) {
+            inert(document);
+            HWPWriter.toFile(document, args[0]);
+            return;
+        }
+        if (args.length > 1 && args[1].equals("textboxes")) {
+            textboxes(document);
+            HWPWriter.toFile(document, args[0]);
+            return;
+        }
+        if (args.length > 1 && args[1].equals("figures")) {
+            figures(document);
+            HWPWriter.toFile(document, args[0]);
+            return;
+        }
         Paragraph root = document.getBodyText().getSectionList().get(0).getParagraph(0);
         root.getText().addString("본문 앞");
         root.getText().addNewNormalChar().setCode(0xd83d);

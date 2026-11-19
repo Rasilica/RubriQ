@@ -1,4 +1,5 @@
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from secrets import token_urlsafe
 from typing import Final
@@ -6,18 +7,32 @@ from typing import Final
 from pydantic import SecretStr
 
 from submission import semantic_diagnostics as diagnostics
-from submission.cloud_contracts import CloudCode, CloudError
+from submission.cloud_contracts import CloudCode, CloudError, TextCompletion, Usage
 from submission.credentials import CredentialStore, KeyringStore, resolve_key
+from submission.document_contracts import CommonDocument
 from submission.pair_store import PairStore, Session
 from submission.report_check_adapter import build_report_check, prepare_report_check_request
 from submission.report_check_contracts import ReportCheckContext
 from submission.report_check_validation import criteria_fingerprint
-from submission.requirement_adapter import build_requirement_draft, prepare_requirement_request
+from submission.requirement_adapter import (
+    build_requirement_draft,
+    prepare_requirement_request,
+    requirement_target,
+)
 from submission.requirement_contracts import RequirementLimits
+from submission.requirement_validation import request_blocks
 from submission.result_rate_limit import ResultRateLimit
 from submission.review_contracts import ReviewSession, WorkingCopyRequest
 from submission.review_logic import confirm_session, initial_item, save_working_copy
-from submission.semantic_client import PROVIDER_TIMEOUT, complete
+from submission.semantic_chunks import (
+    check_chunk_contexts,
+    merge_check_completions,
+    merge_requirement_completions,
+    merged_check_limits,
+    merged_requirement_limits,
+    requirement_chunk_documents,
+)
+from submission.semantic_client import complete, provider_timeout
 from submission.semantic_context import CHECK_LIMITS, document, draft_view
 from submission.semantic_contracts import (
     AIRequest,
@@ -33,12 +48,38 @@ from submission.semantic_contracts import (
 )
 
 REQUIREMENT_LIMITS: Final = RequirementLimits(
-    max_blocks=200,
+    max_blocks=2000,  # response-contract cap; the character budget is the real limit
     max_input_characters=20000,
     max_response_bytes=262144,
     max_requirements=30,
     max_subconditions=10,
 )
+
+
+def sum_usage(completions: Sequence[TextCompletion]) -> Usage:
+    if len(completions) == 1:
+        return completions[0].usage
+
+    def total(values: list[int | None]) -> int | None:
+        known = [value for value in values if value is not None]
+        return sum(known) if known else None
+
+    return Usage(
+        input_tokens=total([c.usage.input_tokens for c in completions]),
+        output_tokens=total([c.usage.output_tokens for c in completions]),
+    )
+
+
+def check_call(chunk: ReportCheckContext, guide: CommonDocument) -> tuple[str, str]:
+    prepared = prepare_report_check_request(chunk, limits=CHECK_LIMITS)
+    payload = json.dumps(
+        {
+            **prepared.model_dump(mode="json"),
+            "guide_blocks": [block.model_dump(mode="json") for block in request_blocks(guide)],
+        },
+        ensure_ascii=False,
+    )
+    return prepared.instructions, payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,10 +150,26 @@ class SemanticService:
             store=self.credential_store,
         )
 
-    def ensure_call_time(self, session: Session) -> None:
+    def ensure_call_time(self, session: Session, request: AIRequest) -> None:
         # Sessions expire on schedule even mid-call, so refuse calls whose result would be lost.
-        if session.expires - self.store.clock() < PROVIDER_TIMEOUT:
+        if session.expires - self.store.clock() < provider_timeout(request.provider):
             raise SemanticError(SemanticCode.SESSION_EXPIRING, 409)
+
+    def complete_all(
+        self,
+        session: Session,
+        request: AIRequest,
+        key: SecretStr,
+        calls: Sequence[tuple[str, str]],
+    ) -> tuple[TextCompletion, ...]:
+        """Sequential provider calls; each is time- and quota-checked, any failure aborts all."""
+        results: list[TextCompletion] = []
+        for instructions, payload in calls:
+            self.ensure_call_time(session, request)
+            if self.quota.retry_after():
+                raise CloudError(CloudCode.RATE_LIMITED, 429)
+            results.append(complete(request, instructions, payload, key))
+        return tuple(results)
 
     def requirements(
         self,
@@ -125,18 +182,30 @@ class SemanticService:
             guide = document(session.guide)
             if guide.source.content_sha256 != request.guide_sha256:
                 raise SemanticError(SemanticCode.SOURCE_MISMATCH, 409)
-            prepared = prepare_requirement_request(guide, limits=REQUIREMENT_LIMITS)
-            self.ensure_call_time(session)
-            if self.quota.retry_after():
-                raise CloudError(CloudCode.RATE_LIMITED, 429)
-            completion = complete(request, prepared.instructions, prepared.model_dump_json(), key)
+            chunks = requirement_chunk_documents(guide, REQUIREMENT_LIMITS)
+            # per-call target: the model is asked for fewer than the limit, split across calls
+            share = max(1, requirement_target(REQUIREMENT_LIMITS.max_requirements) // len(chunks))
+            prepared = [
+                prepare_requirement_request(c, limits=REQUIREMENT_LIMITS, target=share)
+                for c in chunks
+            ]
+            completions = self.complete_all(
+                session, request, key, [(p.instructions, p.model_dump_json()) for p in prepared]
+            )
             diagnostics.mark("report_validation", "report_contract_invalid")
-            draft = build_requirement_draft(guide, completion.suggestion, limits=REQUIREMENT_LIMITS)
+            if len(chunks) == 1:
+                suggestion, limits = completions[0].suggestion, REQUIREMENT_LIMITS
+            else:
+                suggestion = merge_requirement_completions(
+                    guide, [c.suggestion for c in completions], REQUIREMENT_LIMITS
+                )
+                limits = merged_requirement_limits(REQUIREMENT_LIMITS)
+            draft = build_requirement_draft(guide, suggestion, limits=limits)
             diagnostics.mark("result_build", "result_invalid")
             state = SemanticState(
                 provider=request.provider,
                 model=request.model,
-                usage=completion.usage,
+                usage=sum_usage(completions),
                 review=ReviewSession(
                     session_id=token_urlsafe(24),
                     original_draft=draft,
@@ -224,26 +293,18 @@ class SemanticService:
                 or request.criteria_sha256 != criteria_fingerprint(ctx)
             ):
                 raise SemanticError(SemanticCode.SOURCE_MISMATCH, 409)
-            if len(ctx.guide.blocks) + len(ctx.report.blocks) > CHECK_LIMITS.max_blocks:
-                raise SemanticError(SemanticCode.INPUT_LIMIT)
-            prepared = prepare_report_check_request(ctx, limits=CHECK_LIMITS)
-            payload = json.dumps(
-                {
-                    **prepared.model_dump(mode="json"),
-                    "guide_blocks": [
-                        {"block_id": block.block_id, "raw_text": block.raw_text}
-                        for block in ctx.guide.blocks
-                        if block.raw_text.strip()
-                    ],
-                },
-                ensure_ascii=False,
-            )
-            self.ensure_call_time(session)
-            if self.quota.retry_after():
-                raise CloudError(CloudCode.RATE_LIMITED, 429)
-            completion = complete(request, prepared.instructions, payload, key)
+            chunks = check_chunk_contexts(ctx, CHECK_LIMITS)
+            calls = [check_call(chunk, ctx.guide) for chunk in chunks]
+            completions = self.complete_all(session, request, key, calls)
             diagnostics.mark("report_validation", "report_contract_invalid")
-            checked = build_report_check(ctx, completion.suggestion, limits=CHECK_LIMITS)
+            if len(chunks) == 1:
+                suggestion, limits = completions[0].suggestion, CHECK_LIMITS
+            else:
+                suggestion = merge_check_completions(
+                    ctx, chunks, [c.suggestion for c in completions], CHECK_LIMITS
+                )
+                limits = merged_check_limits(CHECK_LIMITS)
+            checked = build_report_check(ctx, suggestion, limits=limits)
             diagnostics.mark("result_build", "result_invalid")
             result = LiveReportResult.model_validate(
                 checked.model_dump(
@@ -260,7 +321,8 @@ class SemanticService:
                 provider=request.provider,
                 model=request.model,
                 result=result,
-                usage=completion.usage,
+                usage=sum_usage(completions),
+                request_count=len(chunks),
             )
 
             self.store.semantic_commit(

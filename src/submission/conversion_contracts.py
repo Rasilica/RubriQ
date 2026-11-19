@@ -7,7 +7,7 @@ from pydantic import ConfigDict, Field
 
 from submission.document_contracts import DocumentArtifact, DocumentSource, Sha256
 from submission.input_contracts import InputLimits
-from submission.models import FrozenModel
+from submission.models import MAX_DOCUMENT_PAGES, FrozenModel
 
 
 class ConversionErrorCode(StrEnum):
@@ -48,7 +48,7 @@ class ConversionConfig(FrozenModel):
     terminate_grace_seconds: Annotated[float, Field(gt=0, le=10, allow_inf_nan=False)] = 2.0
     input_limits: InputLimits = InputLimits()
     max_output_bytes: Annotated[int, Field(gt=0)] = 10 * 1024 * 1024
-    max_output_pages: Annotated[int, Field(gt=0)] = 50
+    max_output_pages: Annotated[int, Field(gt=0)] = MAX_DOCUMENT_PAGES
 
 
 class FontRecord(FrozenModel):

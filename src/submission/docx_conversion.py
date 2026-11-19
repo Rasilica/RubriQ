@@ -5,6 +5,7 @@ import threading
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from hashlib import sha256
 from io import BytesIO
@@ -24,6 +25,7 @@ from submission.conversion_contracts import (
     ConversionResult,
     FontManifest,
 )
+from submission.conversion_fields import neutralize_picture_fields
 from submission.conversion_fonts import collect_fonts
 from submission.conversion_process import run_process
 from submission.conversion_profile import prepare_profile, reject_active_content
@@ -187,10 +189,13 @@ def convert_docx(source: DocumentInput, config: ConversionConfig) -> ConversionR
         identity = inspect_document(source, config.input_limits).source
         if identity.detected_format != "docx":
             raise ConversionError(ConversionErrorCode.UNSUPPORTED_FORMAT)
-        reject_active_content(source.content)
+        # Working copy only: web INCLUDEPICTURE field codes are dropped (cached picture kept) so
+        # LibreOffice never sees a URL; the checked bytes are exactly the bytes rendered.
+        working = replace(source, content=neutralize_picture_fields(source.content))
+        reject_active_content(working.content)
         try:
             config.work_root.mkdir(parents=True, exist_ok=True, mode=0o700)
             with TemporaryDirectory(prefix="docx-", dir=config.work_root) as job:
-                return render_job(source, identity, config, Path(job).resolve(), deadline)
+                return render_job(working, identity, config, Path(job).resolve(), deadline)
         except OSError as error:
             raise ConversionError(ConversionErrorCode.IO_ERROR) from error

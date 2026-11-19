@@ -47,7 +47,7 @@ def test_semantic_large_output_when_provider_completes(provider):
     # Then: the complete JSON survives without truncation.
     assert result.suggestion == text
     assert connection.request.call_count == (3 if provider == "ollama" else 1)
-    assert transport.call_args.kwargs["timeout"] == 180
+    assert transport.call_args.kwargs["timeout"] == (300 if provider == Provider.BILLINGAI else 180)
 
 
 @pytest.mark.parametrize(

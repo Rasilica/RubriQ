@@ -1,4 +1,4 @@
-const STAGES=new Set(['transport','provider_response','output_validation','json_decode','report_validation','result_build']);
+const STAGES=new Set(['transport','provider_response','output_validation','json_decode','report_validation','requirement_validation','result_build']);
 const MESSAGES=Object.freeze({
  upstream_http:'AI 제공자가 요청을 완료하지 못했습니다.',
  tls_failed:'AI 제공자의 보안 인증서를 확인하지 못했습니다.',
@@ -13,6 +13,7 @@ const MESSAGES=Object.freeze({
  unsafe_output:'AI 응답이 안전 검증을 통과하지 못했습니다.',
  malformed_json:'AI 응답의 JSON을 해석하지 못했습니다.',
  report_contract_invalid:'AI 응답이 검사 계약을 충족하지 못했습니다.',
+ requirement_contract_invalid:'AI 응답이 요구사항 추출 계약을 충족하지 못했습니다.',
  citation_invalid:'AI 응답의 원문 인용을 검증하지 못했습니다.',
  result_invalid:'AI 응답 검증 후 결과 구성에 실패했습니다.',
 });

@@ -1,7 +1,12 @@
 export const ROLES={guide:'안내문',report:'보고서'};
 export const STATUS={complete:'완료',partial:'부분 읽기',failed:'실패',unsupported:'지원 범위 밖',not_started:'미실행'};
-export const KINDS={extraction_block:'추출문',paragraph:'문단',table_cell:'표 셀',footnote:'각주',header:'머리말',footer:'꼬리말'};
+export const KINDS={extraction_block:'추출문',paragraph:'문단',table_cell:'표 셀',footnote:'각주',header:'머리말',footer:'꼬리말',figure:'그림',ocr_line:'글자 인식'};
 const WARNINGS={
+  ocr_text_used:'글자 인식(OCR)으로 읽은 내용이 포함되어 있습니다. 이미지에서 기계가 읽은 글자라 틀린 부분이 있을 수 있으니 원본과 비교해주세요.',
+  ocr_page_limit:'글자 인식은 앞쪽 일부 쪽까지만 했습니다. 나머지 쪽의 이미지 글자는 읽지 않았습니다.',
+  ocr_timeout:'글자 인식 시간이 부족해 일부 쪽을 읽지 못했습니다.',
+  ocr_failed:'글자 인식에 실패해 이미지 속 글자는 읽지 못했습니다.',
+  ocr_unavailable:'글자 인식 도구를 사용할 수 없어 이미지 속 글자는 읽지 못했습니다.',
   original_layout_unverified:'원본 레이아웃과 같은지 확인하지 못했습니다. 줄바꿈·표·쪽 나눔이 달라질 수 있습니다.',
   font_inventory_partial:'확인한 폰트 목록이 일부에 한정됩니다. 원본의 모든 폰트가 준비되었는지는 미확인입니다.',
   font_resolution_unverified:'실제로 사용된 폰트와 대체 여부는 확인하지 못했습니다. 글자 모양과 배치를 확인해주세요.',
@@ -23,7 +28,7 @@ const ERRORS={
   xml_limit:'문서 구조가 너무 크거나 깊어 열지 않았습니다.',
   unsafe_xml:'문서에 안전하지 않은 XML 구성이 있어 열지 않았습니다.',
   empty_document:'읽을 수 있는 본문이 없습니다.',
-  too_many_pages:'50쪽을 넘는 문서는 열지 않습니다.',
+  too_many_pages:'100쪽을 넘는 문서는 열지 않습니다.',
   encrypted_pdf:'암호가 걸린 PDF는 읽을 수 없습니다.',
   invalid_pdf:'PDF가 손상되었거나 형식이 올바르지 않습니다.',
   invalid_config:'PDF 변환 도구 설정이 올바르지 않습니다. 서버 실행 설정을 확인해주세요.',
@@ -62,7 +67,7 @@ export function unicodeRange(text,start,end){
 }
 export function verifiedPages(result,total){
   const mapping=result?.mapping;
-  if(result?.snapshot_origin!=='real_pdf'||!['identity','verified_anchor'].includes(mapping?.mapping_status))return [];
+  if(result?.snapshot_origin!=='real_pdf'||!['identity','verified_anchor','ocr_page'].includes(mapping?.mapping_status))return [];
   const pages=mapping.target_page_numbers;
   return Array.isArray(pages)&&pages.length&&pages.every(p=>Number.isInteger(p)&&p>0&&p<=total)?pages:[];
 }
@@ -75,7 +80,7 @@ export function validateSession(value,now=Date.now()){
   for(const role of Object.keys(ROLES)){
     const entry=value[role];
     if(!entry||entry.role!==role||!Object.hasOwn(STATUS,entry.extraction_status)||!Object.hasOwn(STATUS,entry.rendering_status)||!Array.isArray(entry.warnings)||entry.warnings.some(w=>typeof w!=='string'))throw new Error('invalid_document');
-    if(entry.preview_page_count!==null&&(!Number.isInteger(entry.preview_page_count)||entry.preview_page_count<1||entry.preview_page_count>50))throw new Error('invalid_pages');
+    if(entry.preview_page_count!==null&&(!Number.isInteger(entry.preview_page_count)||entry.preview_page_count<1||entry.preview_page_count>100))throw new Error('invalid_pages');
     if(![null,'original_pdf','preview_pdf'].includes(entry.artifact_kind))throw new Error('invalid_artifact');
     if(entry.document!==null){
       const doc=entry.document;

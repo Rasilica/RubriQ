@@ -102,6 +102,9 @@ def test_other_formats_fail_without_job(tmp_path: Path) -> None:
         ("META-INF/extra.xml", '<root target="/outside"/>'),
         ("META-INF/extra.rels", '<root TargetMode="External"/>'),
         ("META-INF/extra.xml", '<root isEmbeded="0"/>'),
+        ("Contents/header.xml", '<root><other isEmbedded="0"/></root>'),
+        ("Contents/header.xml", '<root><font><substFont path="/etc/f.ttf"/></font></root>'),
+        ("Contents/header.xml", '<root><font><substFont href="a:b"/></font></root>'),
         ("META-INF/extra.xml", '<root href="%2e%2e/outside"/>'),
         ("META-INF/extra.xml", '<root src="https%3A//example.invalid/x"/>'),
         ("Scripts/DefaultJScript", "fixture"),
@@ -122,6 +125,18 @@ def test_nonembedded_font_declaration_is_allowed() -> None:
         archive.writestr(
             "Contents/header.xml", '<root><font isEmbedded="0" face="fixture"/></root>'
         )
+
+    reject_hwpx_active_content(package.getvalue())
+
+
+def test_nonembedded_substitute_font_declaration_is_allowed() -> None:
+    header = (
+        '<hh:r xmlns:hh="urn:x"><hh:font face="a"><hh:substFont face="b" type="TTF"'
+        ' isEmbedded="0" binaryItemIDRef=""/></hh:font></hh:r>'
+    )
+    package = BytesIO()
+    with ZipFile(package, "w") as archive:
+        archive.writestr("Contents/header.xml", header)
 
     reject_hwpx_active_content(package.getvalue())
 
@@ -216,6 +231,12 @@ def test_hancom_default_empty_script_template_is_allowed() -> None:
     reject_hwpx_active_content(content)
 
 
+def test_hancom_header_script_without_space_after_semicolon_is_allowed() -> None:
+    header = "var Documents = XHwpDocuments;var Document = Documents.Active_XHwpDocument;"
+
+    reject_hwpx_active_content(script_package({"Scripts/headerScripts": header}))
+
+
 @pytest.mark.parametrize(
     "scripts",
     [
@@ -224,6 +245,9 @@ def test_hancom_default_empty_script_template_is_allowed() -> None:
         {"Scripts/sourceScripts": "function OnDocument_New()\r\n{\r\n\t/* x */ go();\r\n}\r\n"},
         {"Scripts/otherScripts": HANCOM_HEADER_SCRIPT},
         {"Scripts/sourceScripts": "// a\u2028 evil()\r\nfunction A()\r\n{\r\n}\r\n"},
+        {"Scripts/headerScripts": HANCOM_HEADER_SCRIPT + "Run();"},
+        {"Scripts/headerScripts": HANCOM_HEADER_SCRIPT.replace("Document =", "Doc =")},
+        {"Scripts/headerScripts": HANCOM_HEADER_SCRIPT + "// a\u2028Run();"},
     ],
 )
 def test_hancom_scripts_with_code_are_rejected(scripts: dict[str, str]) -> None:

@@ -14,10 +14,10 @@ test('semantic preview contains exact Unicode blocks and rejects over limit with
  assert.deepEqual(preview().blocks.guide,[{block_id:'b1',raw_text:'요구 😀'}]);
  for(const patch of [{provider:''},{model:''},{model:'bad/model'},{stage:'check'}])assert.throws(()=>preview(patch));
  assert.equal(preview({provider:'ollama',model:'qwen3:8b'}).provider,'ollama');
- for(const [count,pass] of [[20000,true],[20001,false]]){const s={...session,guide:{document:document(hash,'😀'.repeat(count))}};if(pass)assert.equal(preview({session:s}).characters,count);else assert.throws(()=>preview({session:s}));}
+ for(const [count,pass] of [[20000,true],[20001,true],[60000,true],[60001,false]]){const s={...session,guide:{document:document(hash,'😀'.repeat(count))}};if(pass)assert.equal(preview({session:s}).characters,count);else assert.throws(()=>preview({session:s}));}
  const confirmed={...draft,confirmed:true,criteria_sha256:hash};
  assert.deepEqual(preview({stage:'check',draft:confirmed}).criteria,editableItems(confirmed.items));
- assert.throws(()=>preview({session:{...session,report:{document:document(reportHash,'x'.repeat(60000))}},stage:'check',draft:confirmed}));
+ assert.throws(()=>preview({session:{...session,report:{document:document(reportHash,'x'.repeat(300001))}},stage:'check',draft:confirmed}));
 });
 test('immutable editable projection excludes server metadata; citations bind exact Unicode ranges',()=>{
  assert.deepEqual(editableItems([{...item,edited_fields:['title']}]),[item]);assert.equal(validateCitation(citation,session.guide.document).quote,citation.quote);
@@ -96,7 +96,7 @@ test('editor preserves IDs, supports conditional reasons, inclusion and subcondi
 test('partial extraction is disclosed and all block count boundaries enforced',()=>{
  const s={...session,guide:{extraction_status:'partial',document:{...session.guide.document,warnings:[{code:'missing',source_locator:{path:'part'}}],typed_errors:[{code:'unread'}]}}};
  const h=harness({},s);h.fill();h.click('semantic-requirements-preview');assert.match(h.contents(h.get('semantic-preview')),/일부만 읽은/);assert.match(h.contents(h.get('semantic-preview')),/확인이 필요한 부분이 있었습니다/);assert.doesNotMatch(h.contents(h.get('semantic-preview')),/missing · part/);
- const blocks=Array.from({length:201},(_,i)=>({block_id:String(i),raw_text:'x'}));assert.throws(()=>preview({session:{...session,guide:{document:{...session.guide.document,blocks}}}}));
+ const blocks=Array.from({length:2001},(_,i)=>({block_id:String(i),raw_text:'x'}));assert.throws(()=>preview({session:{...session,guide:{document:{...session.guide.document,blocks}}}}));
 });
 import {renderSemanticResults,renderCriteria} from '../../src/submission/static/prepare/semantic-view.mjs';
 test('result view renders every judgment, excluded item and partial/subcondition scope without invented scores',()=>{
@@ -140,9 +140,9 @@ test('Ollama discovery empty and failed outcomes remain retryable; changed provi
  h.click('semantic-requirements-preview');h.consent();h.change('semantic-provider','gemini');assert.equal(h.get('semantic-submit').disabled,true);assert.equal(h.get('semantic-preview').children.length,0);
 });
 test('preview includes criteria and original requirement text in server-equivalent budget',()=>{
- const confirmed={...draft,confirmed:true,criteria_sha256:hash};const totalText=60000-4-4;
+ const confirmed={...draft,confirmed:true,criteria_sha256:hash};const totalText=300000-4-4;
  const active={...session,report:{document:document(reportHash,'x'.repeat(totalText))}};
- assert.equal(preview({session:active,stage:'check',draft:confirmed}).characters,59996);
+ assert.equal(preview({session:active,stage:'check',draft:confirmed}).characters,299996);
  assert.throws(()=>preview({session:{...active,report:{document:document(reportHash,'x'.repeat(totalText+1))}},stage:'check',draft:confirmed}));
 });
 
@@ -321,7 +321,7 @@ const diagnosticCases=[
  ['transport','upstream_http','제공자'],['transport','tls_failed','인증서'],['transport','timeout','시간'],['transport','transport_failed','연결'],
  ['provider_response','provider_envelope_invalid','응답 형식'],['provider_response','output_truncated','출력 한도'],['provider_response','response_refused','거절'],['provider_response','tool_call','도구 호출'],
  ['output_validation','empty_output','빈 응답'],['output_validation','response_too_large','크기'],['output_validation','unsafe_output','안전'],
- ['json_decode','malformed_json','JSON'],['report_validation','report_contract_invalid','검사 계약'],['report_validation','citation_invalid','원문 인용'],['result_build','result_invalid','결과 구성']
+ ['json_decode','malformed_json','JSON'],['report_validation','report_contract_invalid','검사 계약'],['report_validation','citation_invalid','원문 인용'],['requirement_validation','requirement_contract_invalid','요구사항 추출'],['requirement_validation','citation_invalid','원문 인용'],['result_build','result_invalid','결과 구성']
 ];
 for(const [stage,reason,label] of diagnosticCases)test(`diagnostic ${reason} has safe specific Korean guidance`,async()=>{
  const diagnostic={id:'a'.repeat(32),stage,reason};assert.deepEqual(validateDiagnostic(diagnostic),diagnostic);assert.ok(diagnosticMessage(diagnostic).includes(label));

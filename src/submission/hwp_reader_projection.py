@@ -57,11 +57,21 @@ def project_block(node: HwpNode, order: int, source: DocumentSource) -> Document
 
 def project_tree(tree: HwpTree, source: DocumentSource) -> CommonDocument:
     blocks = tuple(project_block(node, order, source) for order, node in enumerate(tree.nodes))
+    # A shape whose text box was read is fully read; pictures and containers stay unread.
+    text_box_figures = {
+        block.parent_block_id for block in blocks if "/textbox/" in block.source_locator.path
+    }
     warnings = tuple(
         DocumentDiagnostic(
             code="unsupported_element", page_number=None, source_locator=locator(source, path)
         )
         for path in tree.omitted
+    ) + tuple(
+        DocumentDiagnostic(
+            code="figure_content_unread", page_number=None, source_locator=block.source_locator
+        )
+        for block in blocks
+        if block.kind == "figure" and block.block_id not in text_box_figures
     )
     readable = any(block.raw_text for block in blocks)
     return CommonDocument(

@@ -79,11 +79,16 @@ class ReportItem(ProposedFinding):
     subconditions: Annotated[tuple[ReportSubcondition, ...], Field(max_length=20)]
 
 
-class ReportCheckResponse(FrozenModel):
+class ReportCheckModelResponse(FrozenModel):
+    """What the model returns; the server owns the criteria and report identity."""
+
     schema_version: Literal["1"]
+    reviewed_block_ids: Annotated[tuple[BlockId, ...], Field(max_length=2000)]
+    items: Annotated[tuple[ReportItem, ...], Field(max_length=100)]
+
+
+class ReportCheckResponse(ReportCheckModelResponse):
     criteria_sha256: Sha256
     report_source_id: Annotated[SourceId, Field(min_length=1, max_length=200)]
     report_document_version_id: Annotated[str, Field(min_length=1, max_length=200)]
     report_source_sha256: Sha256
-    reviewed_block_ids: Annotated[tuple[BlockId, ...], Field(max_length=2000)]
-    items: Annotated[tuple[ReportItem, ...], Field(max_length=100)]

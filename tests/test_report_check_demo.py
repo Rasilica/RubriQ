@@ -39,9 +39,9 @@ def test_three_pdf_demo_keeps_evidence_and_uncertainty_separate():
     assert evidence.citation.source_locator.original_page_number == 2
 
 
-@pytest.mark.parametrize("field", ["criteria_sha256", "report_source_sha256", "quote"])
+@pytest.mark.parametrize("field", ["quote"])
 def test_authored_response_cannot_move_between_versions_or_invent_a_quote(
-    field: Literal["criteria_sha256", "report_source_sha256", "quote"],
+    field: Literal["quote"],
 ):
     response_path = (
         Path(__file__).resolve().parents[1] / "samples/checks/normal-offline-response.json"
@@ -50,8 +50,6 @@ def test_authored_response_cannot_move_between_versions_or_invent_a_quote(
     match field:
         case "quote":
             response["items"][0]["subconditions"][0]["evidence"][0]["citation"]["quote"] += "거짓"
-        case "criteria_sha256" | "report_source_sha256":
-            response[field] = "0" * 64
         case unreachable:
             assert_never(unreachable)
     with pytest.raises(ReportCheckError):

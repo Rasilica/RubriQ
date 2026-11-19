@@ -44,3 +44,6 @@ coverage.json
 .vscode/
 .playwright-mcp/
 .mcp.json
+
+# Redacted real documents for local testing only
+/samples/private/

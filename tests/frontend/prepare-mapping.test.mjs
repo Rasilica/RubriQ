@@ -66,3 +66,10 @@ test('a missing mapping uses the unverified result notice',()=>{
   const h=harness();h.render({});
   assert.deepEqual(h.target.children,[{tag:'p',text:'대응 결과를 검증할 수 없습니다.',error:true}]);
 });
+
+test('ocr_page labels the line as recognised text and still offers the page',()=>{
+  const h=harness();h.render({snapshot_origin:'real_pdf',reason_code:'ocr_page_only',mapping:{mapping_status:'ocr_page',target_page_numbers:[2]}});
+  assert.equal(h.target.children[0].text,'이 문구는 이미지에서 글자 인식으로 읽었습니다(오류 가능). 해당 쪽만 연결하며 문구 위치는 확인하지 않았습니다.');
+  assert.equal(h.target.children[0].error,false);
+  assert.deepEqual(h.target.children.slice(1).map(node=>node.text),['2쪽 PDF 보기']);
+});

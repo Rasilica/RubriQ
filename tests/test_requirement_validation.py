@@ -13,13 +13,14 @@ from submission.requirement_contracts import (
 
 
 @pytest.mark.parametrize("field", ["source_id", "document_version_id", "source_sha256"])
-def test_response_rejects_identity_of_another_guide(field: str) -> None:
+def test_response_identity_of_another_guide_is_overwritten_by_server(field: str) -> None:
     payload = {**response_payload(), field: "0" * 64}
 
-    with pytest.raises(RequirementError) as caught:
-        build_requirement_draft(guide_document(), json.dumps(payload))
+    draft = build_requirement_draft(guide_document(), json.dumps(payload))
 
-    assert caught.value.code is RequirementErrorCode.SOURCE_MISMATCH
+    assert getattr(draft, field) == getattr(
+        guide_document().source, field.replace("source_sha256", "content_sha256")
+    )
 
 
 @pytest.mark.parametrize("level", ["requirement", "subcondition", "condition"])

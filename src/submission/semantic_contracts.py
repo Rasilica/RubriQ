@@ -122,6 +122,7 @@ class CheckView(FrozenModel):
     ai_called: Literal[True] = True
     result: LiveReportResult
     usage: Usage
+    request_count: Annotated[int, Field(ge=1)] = 1
 
 
 class SemanticState(FrozenModel):

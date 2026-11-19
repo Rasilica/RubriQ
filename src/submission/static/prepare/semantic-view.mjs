@@ -5,6 +5,7 @@ const TONES={evidence_found:'success',partially_satisfied:'progress',evidence_mi
 const chip=(element,judgment,excluded=false)=>element('span',`badge ${excluded?'ended':TONES[judgment]??'attention'}`,excluded?'검사 제외':LABELS[judgment]??'판정 보류');
 function citationView({ui,citation,role,onEvidence}){
   const {element,button}=ui;const view=element('div','stack semantic-citation');
+  if(citation.from_ocr)view.append(element('span','badge attention','글자 인식(오류 가능)'));
   view.append(element('blockquote','expression-quote',citation.quote),button(role==='guide'?'원문 보기':'보고서 근거 보기',()=>onEvidence({role,block_id:citation.block_id,...citation.char_range})));
   return view;
 }
@@ -21,6 +22,7 @@ export function resultCounts(items){
 }
 export function renderTransmission({ui,target,context,session}){
   const {element}=ui;target.replaceChildren(element('h3','','실행 전 범위 확인'),element('p','',`${PROVIDERS[context.provider]} · ${context.model} · 총 ${context.characters.toLocaleString('ko-KR')}자`),element('p','muted','아래의 읽은 원문과 시스템 지침을 사용합니다. 파일·이미지 자체는 보내지 않습니다. AI 판단은 누락되거나 틀릴 수 있습니다.'));
+  if(context.characters>(context.stage==='check'?60000:20000))target.append(element('p','notice','문서가 길어 여러 번 나눠 전송합니다. 호출마다 비용이 발생합니다.'));
   if(context.criteria){target.append(criteriaList(element,'확정한 검사 기준 · 전체',context.criteria.map(c=>({title:c.title,parts:c.subconditions.map(sub=>sub.description),excluded:!c.included}))),criteriaList(element,'안내문에서 추출한 원래 요구사항 · 전체',context.original_requirements.map(r=>({title:r.title,parts:r.subconditions.map(sub=>sub.description)}))));}
   for(const [role,blocks] of Object.entries(context.blocks)){
     const section=element('details','stack');section.open=true;section.append(element('summary','',`${role==='guide'?'안내문':'보고서'} · 전송할 전체 텍스트`));

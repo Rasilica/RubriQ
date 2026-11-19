@@ -8,7 +8,14 @@ from submission.document_contracts import (
     DocumentSource,
     SourceReference,
 )
-from submission.hwpx_projection import FORMATTING, STORIES, ParagraphProjection
+from submission.hwpx_projection import (
+    FIGURES,
+    FORMATTING,
+    SHAPES,
+    STORIES,
+    ParagraphProjection,
+    figure_parts,
+)
 from submission.hwpx_structure_types import (
     BlockPosition,
     HwpxReadResult,
@@ -108,14 +115,35 @@ class _Reader:
             self.structure(child, BlockPosition(child.path, container.block_id, position.order + 1))
         )
 
+    def figure(self, located: LocatedNode, position: BlockPosition) -> HwpxReadResult:
+        figure = self.context.block(position, "figure")
+        captions, lists, has_picture = figure_parts(located)
+        result = HwpxReadResult((figure,))
+        # Unread unless nothing but text boxes was found (nothing at all is also unread).
+        if has_picture or not (captions or lists):
+            result = result.joined(
+                HwpxReadResult(
+                    warnings=(self.context.warning(located.path, code="figure_content_unread"),)
+                )
+            )
+        for child in (*captions, *lists):
+            at = BlockPosition(child.path, figure.block_id, position.order + len(result.blocks))
+            result = result.joined(self.structure(child, at))
+        return result
+
     def structure(self, located: LocatedNode, position: BlockPosition) -> HwpxReadResult:
         if located.name == "hp:p":
             return self.paragraph(located, position)
+        if located.name in FIGURES | SHAPES:
+            return self.figure(located, position)
         if located.name in FORMATTING:
             return HwpxReadResult(warnings=tuple(self.projection.formatting(located)))
         allowed = {
             "hs:sec": frozenset({"hp:p"}),
-            "hp:tbl": frozenset({"hp:tr", "hp:sz", "hp:pos", "hp:outMargin", "hp:inMargin"}),
+            "hp:tbl": frozenset(
+                {"hp:tr", "hp:sz", "hp:pos", "hp:outMargin", "hp:inMargin", "hp:caption"}
+            ),
+            "hp:caption": frozenset({"hp:subList"}),
             "hp:tr": frozenset({"hp:tc"}),
             "hp:tc": frozenset(
                 {"hp:subList", "hp:cellAddr", "hp:cellSpan", "hp:cellSz", "hp:cellMargin"}

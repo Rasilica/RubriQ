@@ -9,7 +9,7 @@ from submission.report_check_validation import criteria_fingerprint
 from submission.semantic_contracts import DraftView, SemanticState
 
 CHECK_LIMITS: Final = ReportCheckLimits(
-    max_blocks=500,
+    max_blocks=2000,  # response-contract cap; the character budget is the real limit
     max_input_characters=60000,
     max_response_bytes=262144,
 )

@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from requirement_helpers import guide_document, response_payload
 
 from submission.requirement_adapter import OfflineRequirementAdapter, prepare_requirement_request
-from submission.requirement_contracts import RequirementDraft
+from submission.requirement_contracts import RequirementDraft, RequirementLimits
 
 
 def test_offline_pdf_fixture_produces_unconfirmed_cited_requirements() -> None:
@@ -47,8 +47,8 @@ def test_request_contains_versioned_schema_and_untrusted_document_data() -> None
     assert schema["additionalProperties"] is False
     assert request.prompt_version == request.schema_version == "1"
     assert request.blocks[0].raw_text == document.blocks[0].raw_text
-    assert request.source_id == document.source.source_id
-    assert request.source_sha256 == document.source.content_sha256
+    assert "source_sha256" not in schema["properties"]
+    assert not hasattr(request, "source_sha256")
     assert request.coordinate_basis == "block_raw_unicode"
 
 
@@ -75,3 +75,40 @@ def test_schema_exposes_conditional_requirement_and_strict_citation_shape() -> N
     citation = schema["$defs"]["CitationInput"]
     assert set(citation["properties"]) == {"block_id", "char_range", "quote"}
     assert citation["additionalProperties"] is False
+
+
+def test_request_instructions_state_limits_and_grouping_guidance() -> None:
+    limits = RequirementLimits(max_requirements=7, max_subconditions=4)
+
+    instructions = prepare_requirement_request(guide_document(), limits=limits).instructions
+
+    assert "요구사항을 최대 5개" in instructions
+    assert "하위조건을 요구사항마다 최대 4개" in instructions
+    assert "하나의 요구사항으로 묶고" in instructions
+    assert "30개" not in instructions
+
+
+def test_request_instructions_ask_for_fewer_requirements_than_the_server_limit() -> None:
+    default = prepare_requirement_request(
+        guide_document(), limits=RequirementLimits(max_requirements=30, max_subconditions=10)
+    ).instructions
+    custom = prepare_requirement_request(
+        guide_document(), limits=RequirementLimits(max_requirements=12)
+    ).instructions
+
+    assert "요구사항을 최대 25개" in default
+    assert "요구사항을 최대 30개" not in default
+    assert "요구사항을 최대 10개" in custom
+    assert "하위조건을 요구사항마다 최대 10개" in default
+
+
+def test_request_instructions_state_citation_limits_and_title_guidance() -> None:
+    limits = RequirementLimits(max_citations=3, max_quote_characters=500)
+
+    instructions = prepare_requirement_request(guide_document(), limits=limits).instructions
+
+    assert "인용은 최대 3개" in instructions
+    assert "quote는 최대 500자" in instructions
+    assert "가장 대표적인 인용" in instructions
+    assert "10개" not in instructions
+    assert "10000자" not in instructions

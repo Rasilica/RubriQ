@@ -30,6 +30,33 @@ STORIES: Final[dict[str, StoryKind]] = {
     "hp:header": "header",
     "hp:footer": "footer",
 }
+# Pictures and picture groups; drawn shapes count as figures only when they hold a text box.
+FIGURES: Final = frozenset({"hp:pic", "hp:container"})
+SHAPES: Final = frozenset({"hp:rect", "hp:ellipse", "hp:arc", "hp:polygon", "hp:curve"})
+
+
+def figure_parts(located: LocatedNode) -> tuple[list[LocatedNode], list[LocatedNode], bool]:
+    """Captions and text box lists in the figure's own subtree, and whether it holds a picture.
+
+    Nested pictures own their captions; captions and text boxes are not searched inside.
+    """
+    captions: list[LocatedNode] = []
+    lists: list[LocatedNode] = []
+    has_picture = located.name == "hp:pic"
+    pending = list(located.children())[::-1]
+    while pending:
+        child = pending.pop()
+        if child.name == "hp:caption":
+            captions.append(child)
+        elif child.name == "hp:drawText":
+            lists.extend(item for item in child.children() if item.name == "hp:subList")
+        elif child.name == "hp:pic":
+            has_picture = True
+        else:
+            pending.extend(list(child.children())[::-1])
+    return captions, lists, has_picture
+
+
 type InlineEvent = TextPiece | LocatedNode | DocumentDiagnostic
 
 
@@ -72,7 +99,7 @@ class ParagraphProjection:
         yield from self.outside_text(located)
         allowed = {
             "hp:p": frozenset({"hp:run", "hp:linesegarray"}),
-            "hp:run": frozenset({"hp:t", "hp:tbl", "hp:ctrl", "hp:secPr"}),
+            "hp:run": frozenset({"hp:t", "hp:tbl", "hp:ctrl", "hp:secPr", *FIGURES, *SHAPES}),
             "hp:ctrl": frozenset(STORIES),
         }
         for child in located.children():
@@ -82,7 +109,9 @@ class ParagraphProjection:
                 yield from self.inline(child)
             elif child.name == "hp:t":
                 yield from self.text(child)
-            elif child.name in {"hp:tbl", *STORIES}:
+            elif child.name in SHAPES and not figure_parts(child)[1]:
+                yield self.context.warning(child.path)
+            elif child.name in {"hp:tbl", *FIGURES, *SHAPES, *STORIES}:
                 yield child
             else:
                 yield from self.formatting(child)

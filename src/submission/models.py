@@ -1,8 +1,15 @@
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Annotated, ClassVar, Final, Literal, override
+from typing import Annotated, Any, ClassVar, Final, Literal, override
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    computed_field,
+    model_serializer,
+)
 
 
 class DocumentRole(StrEnum):
@@ -14,9 +21,29 @@ class FrozenModel(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True, extra="forbid")
 
 
+class OptionalFieldsModel(FrozenModel):
+    """Fields added after archives were written stay out of JSON and hashes at their default."""
+
+    omit_when_default: ClassVar[tuple[str, ...]] = ()
+
+    def omitted_fields(self) -> tuple[str, ...]:
+        fields = type(self).model_fields
+        return tuple(k for k in self.omit_when_default if getattr(self, k) == fields[k].default)
+
+    @model_serializer(mode="wrap")
+    def _omit_defaults(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data = handler(self)
+        for key in self.omitted_fields():
+            data.pop(key, None)
+        return data
+
+
+MAX_DOCUMENT_PAGES: Final = 100
+
+
 class PdfLimits(FrozenModel):
     max_bytes: Annotated[int, Field(gt=0)] = 10 * 1024 * 1024
-    max_pages: Annotated[int, Field(gt=0)] = 50
+    max_pages: Annotated[int, Field(gt=0)] = MAX_DOCUMENT_PAGES
 
 
 @dataclass(frozen=True, slots=True)

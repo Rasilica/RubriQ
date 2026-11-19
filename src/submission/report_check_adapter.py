@@ -7,6 +7,7 @@ from submission.report_check_contracts import (
     DEFAULT_REPORT_CHECK_LIMITS,
     ReportCheckContext,
     ReportCheckLimits,
+    ReportCheckModelResponse,
     ReportCheckResponse,
     ReportItem,
     ReportSubcondition,
@@ -21,13 +22,16 @@ from submission.report_check_results import (
     SubconditionResult,
 )
 from submission.report_check_validation import (
-    criteria_fingerprint,
     parse_response,
+    submitted_report_block_ids,
     validate_context,
     validate_response,
     verify_evidence,
+    with_cited_blocks_reviewed,
+    without_sent_figures,
 )
-from submission.requirement_contracts import RequestBlock
+from submission.requirement_contracts import FIGURE_INSTRUCTION, OCR_INSTRUCTION
+from submission.requirement_validation import request_blocks
 from submission.review_contracts import ReviewedItem
 
 INSTRUCTIONS: Final = (
@@ -39,7 +43,9 @@ INSTRUCTIONS: Final = (
     "reviewed_block_ids에는 검토를 주장하는 제출 블록만 적으세요. "
     "인용은 block_raw_unicode Python Unicode [start,end) 원문 그대로이며 "
     "다른 위치를 만들지 마세요. "
-    "응답 citation은 response_schema_json이 지정한 인용 형식만 사용하세요. "
+    + FIGURE_INSTRUCTION
+    + OCR_INSTRUCTION
+    + "응답 citation은 response_schema_json이 지정한 인용 형식만 사용하세요. "
     "입력 기준의 검증된 인용에 있는 출처·해시 등 추가 메타데이터는 복사하지 마세요. "
     "제목이나 목차만으로 충족을 주장하지 마세요. "
     "누락은 위반이 아니며 규칙 검증 전 위반은 보류합니다. "
@@ -55,9 +61,7 @@ def prepare_report_check_request(
     context: ReportCheckContext, *, limits: ReportCheckLimits = DEFAULT_REPORT_CHECK_LIMITS
 ) -> ReportCheckRequest:
     validate_context(context, limits)
-    source = context.report.source
     return ReportCheckRequest(
-        criteria_sha256=criteria_fingerprint(context),
         criteria=context.criteria,
         original_requirements=context.original_draft.requirements,
         expected_items=tuple(
@@ -68,18 +72,11 @@ def prepare_report_check_request(
             for item in context.criteria.items
             if item.included and item.application_status == "applies"
         ),
-        report_source_id=source.source_id,
-        report_document_version_id=source.document_version_id,
-        report_source_sha256=source.content_sha256,
         instructions=INSTRUCTIONS,
         response_schema_json=json.dumps(
-            ReportCheckResponse.model_json_schema(), ensure_ascii=False
+            ReportCheckModelResponse.model_json_schema(), ensure_ascii=False
         ),
-        blocks=tuple(
-            RequestBlock(block_id=block.block_id, raw_text=block.raw_text)
-            for block in context.report.blocks
-            if block.raw_text.strip()
-        ),
+        blocks=request_blocks(context.report),
     )
 
 
@@ -184,15 +181,18 @@ def build_report_check(
     limits: ReportCheckLimits = DEFAULT_REPORT_CHECK_LIMITS,
 ) -> ReportCheckResult:
     request = prepare_report_check_request(context, limits=limits)
-    response = parse_response(response_json, limits)
+    response = with_cited_blocks_reviewed(
+        without_sent_figures(parse_response(response_json, limits, context), context),
+        submitted_report_block_ids(context),
+    )
     validate_response(context, response)
     return ReportCheckResult(
-        criteria_sha256=request.criteria_sha256,
+        criteria_sha256=response.criteria_sha256,
         criteria_version=context.criteria.version,
         criteria_revision=context.criteria.revision,
-        report_source_id=request.report_source_id,
-        report_document_version_id=request.report_document_version_id,
-        report_source_sha256=request.report_source_sha256,
+        report_source_id=response.report_source_id,
+        report_document_version_id=response.report_document_version_id,
+        report_source_sha256=response.report_source_sha256,
         submitted_block_ids=tuple(block.block_id for block in request.blocks),
         reviewed_block_ids=response.reviewed_block_ids,
         items=resolve_items(context, response),

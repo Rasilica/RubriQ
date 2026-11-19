@@ -25,7 +25,7 @@ def test_semantic_billing_requests_stateless_json_object_once():
     assert result.usage.input_tokens == 12
     assert result.usage.output_tokens == 34
     assert transport.call_args.args == ("billing-ai.doubleze.ro",)
-    assert transport.call_args.kwargs["timeout"] == 180
+    assert transport.call_args.kwargs["timeout"] == 300
     assert transport.call_args.kwargs["context"].check_hostname
     connection.request.assert_called_once()
     request = connection.request.call_args
@@ -38,7 +38,7 @@ def test_semantic_billing_requests_stateless_json_object_once():
     assert isinstance(body["instructions"], str)
     assert body["instructions"].strip()
     assert body["stream"] is False
-    assert body["max_output_tokens"] == 8192
+    assert body["max_output_tokens"] == 32000
     assert body["text"] == {"format": {"type": "json_object"}}
     assert b"test-key" not in request.kwargs["body"]
     assert not INFERENCE.locked()

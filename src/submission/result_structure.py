@@ -60,7 +60,7 @@ def structure_document(case: ResultCase, *, samples: Path = SAMPLES) -> CommonDo
             "2205f6e9740e244516122046adb679848b6f9b2d507880bff6f1d2a7660571e9",
         ).replace(
             b"</hs:sec>",
-            b"<hp:p><hp:run><hp:pic/></hp:run></hp:p></hs:sec>",
+            b"<hp:p><hp:run><hp:rect/></hp:run></hp:p></hs:sec>",
         )
         return read_hwpx(
             DocumentInput(

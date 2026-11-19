@@ -18,7 +18,7 @@
 
 - 제공자 ID: `billingai`. 기존 세션 API·헤더를 사용하며 일회성 키는 `X-AI-API-Key`로 로컬 서버에 전달한다. 저장한 키는 `use_saved_key: true`로 지정하고 서버가 읽는다.
 - 서버 외부 호출은 고정 HTTPS `billing-ai.doubleze.ro`와 `Authorization: Bearer <키>`를 사용한다. 일반 윤문은 `POST /api/v1/chat/completions`, 요구사항 추출·보고서 검사는 `POST /api/v1/responses`를 사용한다. 사용자가 임의의 Base URL을 입력하지 않는다.
-- 윤문 본문은 모델 ID, `system`/`user` 메시지, 출력 토큰 한도, `stream: false`다. 의미 검사는 `model`·`instructions`·`input`·`max_output_tokens: 8192`·`stream: false`와 `text: {format: {type: "json_object"}}`를 전달한다. Responses는 무상태 경로이므로 `store`와 `previous_response_id`를 보내지 않는다. 문서 파일이나 이미지를 업로드하지 않고 확인한 텍스트와 시스템 지침만 전송한다.
+- 윤문 본문은 모델 ID, `system`/`user` 메시지, 출력 토큰 한도, `stream: false`다. 의미 검사는 `model`·`instructions`·`input`·`max_output_tokens: 32000`(추론 토큰 포함 상한. 직접 OpenAI·Gemini·Anthropic·Ollama 경로는 8192 유지)·`stream: false`와 `text: {format: {type: "json_object"}}`를 전달한다. Responses는 무상태 경로이므로 `store`와 `previous_response_id`를 보내지 않는다. 문서 파일이나 이미지를 업로드하지 않고 확인한 텍스트와 시스템 지침만 전송한다.
 - 완료된 assistant 텍스트만 허용한다. 잘린 생성·거절·도구 호출·빈 응답·손상 응답은 오류로 처리하며 원문·키·공급사 오류 원문을 반환하지 않는다.
 - 기존 클라우드 실행 잠금·분당 제한·TLS 검증·응답 크기/시간 제한을 공유한다. 리디렉션·환경 프록시·자동 재시도는 사용하지 않는다.
 - 사용량이 반환되면 입력/출력 토큰을 표시한다. 토큰 수는 실제 청구 크레딧·잔액 확인을 대신하지 않는다. 과금과 데이터 보관 조건은 빌링AI 및 선택 공급사의 정책을 따른다. 무보관·학습 미사용을 보장하지 않는다.

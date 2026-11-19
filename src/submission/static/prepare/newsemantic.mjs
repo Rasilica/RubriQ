@@ -5,6 +5,8 @@ import {validateOllamaModels} from './ollama.mjs';
 export const PROVIDERS={gemini:'Gemini',openai:'OpenAI (GPT)',anthropic:'Anthropic (Claude)',billingai:'빌링AI',ollama:'Ollama · 로컬'};
 const hash=value=>typeof value==='string'&&/^[a-f0-9]{64}$/u.test(value);
 const keyValid=value=>typeof value==='string'&&/^[\x21-\x7e]{1,512}$/u.test(value);
+// 서버는 20,000자(추출 최대 3회)·60,000자(검사 최대 5회) 단위로 나눠 보내므로 화면은 호출 상한 총합만 확인한다.
+const MAX_REQUIREMENT_CHARACTERS=60000,MAX_CHECK_CHARACTERS=300000,MAX_BLOCKS=2000;
 const need=value=>{if(!value)throw new Error('invalid_semantic_context');};
 const confirmationRejected=error=>error?.status===422&&['application_undetermined','application_reason_required','invalid_condition','exclusion_reason_required','empty_criteria','immutable_identity','invalid_request'].includes(error.code);
 export function editableItems(items){return items.map(({requirement_id,title,classification,condition_description,subconditions,included,exclusion_reason,application_status,application_reason})=>({requirement_id,title,classification,condition_description,subconditions:subconditions.map(({subcondition_id,description})=>({subcondition_id,description})),included,exclusion_reason,application_status,application_reason}));}
@@ -13,13 +15,13 @@ export function semanticPreview({session,provider,model,stage,draft}){
   need(stage==='requirements'||stage==='check');const roles=stage==='check'?['guide','report']:['guide'];
   const blocks={};let characters=0,count=0;
   for(const role of roles){const doc=session[role]?.document;need(doc&&hash(doc.source.content_sha256));blocks[role]=doc.blocks.map(({block_id,raw_text})=>({block_id,raw_text}));count+=blocks[role].length;characters+=blocks[role].reduce((sum,b)=>sum+[...b.raw_text].length,0);}
-  need(characters>0&&characters<=(stage==='check'?60000:20000)&&count<=(stage==='check'?500:200));
+  need(characters>0&&characters<=(stage==='check'?MAX_CHECK_CHARACTERS:MAX_REQUIREMENT_CHARACTERS)&&count<=MAX_BLOCKS);
   if(stage==='check'){
     need(draft?.confirmed===true&&hash(draft.criteria_sha256)&&draft.guide_sha256===session.guide.document.source.content_sha256);
     const size=text=>[...(text??'')].length;
     const criteriaSize=draft.items.reduce((sum,item)=>sum+size(item.title)+size(item.condition_description)+size(item.exclusion_reason)+size(item.application_reason)+item.subconditions.reduce((n,sub)=>n+size(sub.description),0),0);
     const originalSize=draft.requirements.reduce((sum,item)=>sum+size(item.title)+size(item.condition?.description)+item.subconditions.reduce((n,sub)=>n+size(sub.description),0),0);
-    need(characters+criteriaSize+originalSize<=60000);
+    need(characters+criteriaSize+originalSize<=MAX_CHECK_CHARACTERS);
   }
   return {stage,provider,model,blocks,characters,count,guide_sha256:session.guide.document.source.content_sha256,...(stage==='check'?{draft_id:draft.draft_id,criteria_sha256:draft.criteria_sha256,report_sha256:session.report.document.source.content_sha256,criteria:editableItems(draft.items),original_requirements:draft.requirements}:{})};
 }
@@ -99,7 +101,7 @@ export function mountSemanticPanel({ui,api,session,onEvidence,onComplete,onExpir
     invalidate();try{const credentials=credentialChoice(provider.value,key.value,keyStatus);preview={...semanticPreview({session,provider:provider.value,model:model.value.trim(),stage,draft}),useSavedKey:credentials.useSavedKey};
       consentText.textContent=provider.value==='ollama'?'표시한 범위와 시스템 지침을 이 컴퓨터의 Ollama에서 실행하는 것을 확인합니다.':provider.value==='billingai'?'표시한 범위와 시스템 지침을 빌링AI 및 선택한 모델의 실제 제공자에게 전송하며, 크레딧이 차감될 수 있습니다. 이에 동의합니다.':'표시한 범위와 시스템 지침을 선택한 외부 제공자에게 전송하며, 비용이 발생할 수 있습니다. 이에 동의합니다.';
       renderTransmission({ui,target:transmission,context:preview,session});transmission.append(consentLabel);say('범위를 확인한 뒤 실행에 동의해주세요.');controls();
-    }catch{say('제공자·모델 ID·API 키와 문서를 확인해주세요. 키는 공백 없는 ASCII 문자 512자까지입니다. 안내문은 20,000자·200블록, 검사는 안내문·보고서·검사 기준 텍스트 합계 60,000자, 문서 500블록 이하이며 초과 문서는 잘라 보내지 않습니다.',true);}
+    }catch{say('제공자·모델 ID·API 키와 문서를 확인해주세요. 키는 공백 없는 ASCII 문자 512자까지입니다. 안내문이 20,000자를 넘으면 요구사항 추출을 최대 3회, 검사 입력(안내문·보고서·검사 기준 합계)이 60,000자를 넘으면 검사를 최대 5회로 나눠 보냅니다. 한 문단이나 셀이 한도보다 길면 보낼 수 없고 문서를 잘라 보내지 않습니다.',true);}
   }
   function failure(error,confirmation=false){
     if(error?.status===404){onExpired();return;}

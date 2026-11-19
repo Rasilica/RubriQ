@@ -14,13 +14,13 @@ from submission.requirement_contracts import (
     CitationInput,
     RequirementLimits,
 )
-from submission.requirement_validation import admit_guide, verify_citation
+from submission.requirement_validation import admit_guide, sent_block_count, verify_citation
 from submission.review_contracts import ReviewedItem
 
 
 def validate_document(document: CommonDocument, limits: ReportCheckLimits) -> None:
     if (
-        len(document.blocks) > limits.max_blocks
+        sent_block_count(document) > limits.max_blocks
         or sum(len(block.raw_text) for block in document.blocks) > limits.max_input_characters
     ):
         raise ReportCheckError(ReportCheckErrorCode.INPUT_LIMIT)
@@ -144,12 +144,9 @@ def validate_originals(context: CriteriaContext) -> None:
                 raise ReportCheckError(ReportCheckErrorCode.INVALID_CITATION)
 
 
-def validate_context_budget(context: ReportCheckContext, limits: ReportCheckLimits) -> None:
-    source_size = sum(
-        len(block.raw_text)
-        for document in (context.guide, context.report)
-        for block in document.blocks
-    )
+def criteria_budget_size(context: CriteriaContext) -> int:
+    """Characters of guide text, criteria and original requirements counted by the budget."""
+    source_size = sum(len(block.raw_text) for block in context.guide.blocks)
     criteria_size = sum(
         len(item.title)
         + len(item.condition_description or "")
@@ -164,5 +161,10 @@ def validate_context_budget(context: ReportCheckContext, limits: ReportCheckLimi
         + (len(item.condition.description) if item.condition else 0)
         for item in context.original_draft.requirements
     )
-    if source_size + criteria_size + original_size > limits.max_input_characters:
+    return source_size + criteria_size + original_size
+
+
+def validate_context_budget(context: ReportCheckContext, limits: ReportCheckLimits) -> None:
+    report_size = sum(len(block.raw_text) for block in context.report.blocks)
+    if criteria_budget_size(context) + report_size > limits.max_input_characters:
         raise ReportCheckError(ReportCheckErrorCode.INPUT_LIMIT)

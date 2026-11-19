@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createResources, initialSelection, selectBlock, selectPage, unicodeRange, verifiedPages, validateSession,mappingMatches,warningText} from '../../src/submission/static/prepare/state.mjs';
+import {createResources, initialSelection, selectBlock, selectPage, unicodeRange, verifiedPages, validateSession,mappingMatches,warningText,KINDS} from '../../src/submission/static/prepare/state.mjs';
 
 test('conversion warnings explain uncertainty in Korean without claiming substitution occurred',()=>{
   assert.equal(warningText('original_layout_unverified'),'원본 레이아웃과 같은지 확인하지 못했습니다. 줄바꿈·표·쪽 나눔이 달라질 수 있습니다.');
@@ -58,7 +58,7 @@ test('valid document and malformed blocks, warnings, page counts and artifacts',
   const role=name=>({role:name,document:{source:{role:name,filename:'보고서.hwp',content_sha256:hash},blocks:[block],coverage:{scope:'hwp_structure'}},extraction_status:'partial',rendering_status:'complete',warnings:[],preview_page_count:1,artifact_kind:'preview_pdf'});
   const session={session_id:'s1',project_name:'p',expires_at:'2099-01-01',guide:role('guide'),report:role('report')};
   assert.equal(validateSession(session,0),session);
-  for(const patch of [{warnings:[4]},{preview_page_count:51},{artifact_kind:'fake'},{extraction_status:'unknown'},{document:{...session.guide.document,blocks:[block,block]}},{document:{...session.guide.document,blocks:[{...block,raw_text:null}]}}])assert.throws(()=>validateSession({...session,guide:{...session.guide,...patch}},0));
+  for(const patch of [{warnings:[4]},{preview_page_count:101},{artifact_kind:'fake'},{extraction_status:'unknown'},{document:{...session.guide.document,blocks:[block,block]}},{document:{...session.guide.document,blocks:[{...block,raw_text:null}]}}])assert.throws(()=>validateSession({...session,guide:{...session.guide,...patch}},0));
 });
 
 test('preparation errors name the actual cause in Korean',async()=>{
@@ -68,4 +68,15 @@ test('preparation errors name the actual cause in Korean',async()=>{
   assert.match(errorText('unsupported_active_content'),/PDF 변환을 하지 않았습니다/);
   assert.equal(errorText('some_future_code'),'이 문서를 준비하는 중 오류가 발생했습니다.');
   assert.equal(errorText('__proto__'),'이 문서를 준비하는 중 오류가 발생했습니다.');
+});
+
+test('figure blocks have a Korean kind label',()=>{
+  assert.equal(KINDS.figure,'그림');
+});
+
+test('ocr kind label, warning copy and page mapping are exposed',()=>{
+  assert.equal(KINDS.ocr_line,'글자 인식');
+  assert.match(warningText('ocr_text_used'),/글자 인식/);
+  assert.match(warningText('ocr_failed'),/글자 인식/);
+  assert.deepEqual(verifiedPages({snapshot_origin:'real_pdf',mapping:{mapping_status:'ocr_page',target_page_numbers:[1]}},2),[1]);
 });

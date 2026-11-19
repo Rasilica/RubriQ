@@ -25,9 +25,10 @@ from submission.requirement_validation import verify_citation
 
 @dataclass(frozen=True, slots=True)
 class MappingDecision:
-    status: Literal["identity", "verified_anchor", "ambiguous", "unmapped", "mismatch"]
+    status: Literal["identity", "verified_anchor", "ocr_page", "ambiguous", "unmapped", "mismatch"]
     reason: Literal[
         "exact_identity",
+        "ocr_page_only",
         "exact_anchor",
         "layout_whitespace_anchor",
         "repeated_anchor",
@@ -36,6 +37,22 @@ class MappingDecision:
         "incomplete_target_coverage",
     ]
     ranges: tuple[ArtifactTextRange, ...] = ()
+    pages: tuple[int, ...] = ()
+
+
+def ocr_decision(
+    context: EvidenceMapContext, request: EvidenceMapRequest, snapshot: ArtifactSnapshot
+) -> MappingDecision | None:
+    """OCR text is not in the PDF text layer, so only its page can be linked."""
+    block = next(
+        block for block in context.document.blocks if block.block_id == request.citation.block_id
+    )
+    if block.kind != "ocr_line":
+        return None
+    page = block.source_locator.original_page_number
+    if page is None or not 1 <= page <= len(snapshot.pages):
+        return MappingDecision("unmapped", "incomplete_target_coverage")
+    return MappingDecision("ocr_page", "ocr_page_only", pages=(page,))
 
 
 def identity_ranges(
@@ -135,6 +152,28 @@ def claims_match(
     return any(claims == coalesced_ranges(candidate) for candidate in candidates)
 
 
+def decide(
+    context: EvidenceMapContext,
+    request: EvidenceMapRequest,
+    snapshot: ArtifactSnapshot,
+    quote: str,
+    limits: EvidenceLimits,
+) -> tuple[tuple[tuple[ArtifactTextRange, ...], ...], MappingDecision]:
+    ocr = ocr_decision(context, request, snapshot)
+    if ocr is not None:
+        return (), ocr
+    identity = identity_ranges(context, request, snapshot)
+    if identity is None:
+        found = find_candidates(
+            snapshot.pages, quote, limits, whitespace_layout=snapshot.origin == "real_pdf"
+        )
+        return found, choose_mapping(found, request, snapshot)
+    candidates = (identity,) if identity else ()
+    if identity and claims_match(request, candidates):
+        return candidates, MappingDecision("identity", "exact_identity", identity)
+    return candidates, MappingDecision("mismatch", "range_mismatch")
+
+
 def map_evidence(
     context: EvidenceMapContext,
     request: EvidenceMapRequest,
@@ -167,24 +206,10 @@ def map_evidence(
     except RequirementError:
         raise EvidenceError(EvidenceErrorCode.INVALID_CITATION) from None
     validate_claims(request.expected_target_ranges, snapshot.pages, limits)
-    identity = identity_ranges(context, request, snapshot)
-    candidates = (
-        find_candidates(
-            snapshot.pages, citation.quote, limits, whitespace_layout=snapshot.origin == "real_pdf"
-        )
-        if identity is None
-        else ((identity,) if identity else ())
+    candidates, decision = decide(context, request, snapshot, citation.quote, limits)
+    target_pages = decision.pages or tuple(
+        dict.fromkeys(item.page_number for item in decision.ranges)
     )
-    if identity is not None:
-        agrees = claims_match(request, candidates)
-        decision = (
-            MappingDecision("identity", "exact_identity", identity)
-            if identity and agrees
-            else MappingDecision("mismatch", "range_mismatch")
-        )
-    else:
-        decision = choose_mapping(candidates, request, snapshot)
-    target_pages = tuple(dict.fromkeys(item.page_number for item in decision.ranges))
     match decision.status:
         case "identity":
             original_pages, method = target_pages, "same_source_artifact"
@@ -197,6 +222,9 @@ def map_evidence(
                     else "exact_block_unicode_anchor"
                 ),
             )
+        case "ocr_page":
+            is_original = context.target.binding.artifact.kind == "original_pdf"
+            original_pages, method = (target_pages if is_original else None), "ocr_page_only"
         case "ambiguous" | "unmapped" | "mismatch":
             original_pages, method = None, None
         case _:

@@ -24,14 +24,13 @@ def setup(request):
     return request.getfixturevalue("archive_setup")
 
 
-@pytest.mark.parametrize("kind", ["characters", "blocks", "blank", "partial", "unreadable"])
+@pytest.mark.parametrize("kind", ["characters", "blank", "partial", "unreadable"])
 def test_criteria_archive_survives_report_check_ineligibility(setup, tmp_path, blank_pdf, kind):
     # Given: real documents outside AI report eligibility but inside library limits.
     client, store, session, headers, now = setup
-    if kind in {"characters", "blocks"}:
-        text = "x" * 61000 if kind == "characters" else "section"
-        body = f"<w:p><w:r><w:t>{text}</w:t></w:r></w:p>"
-        content = make_docx(body * (501 if kind == "blocks" else 1))
+    if kind == "characters":
+        body = f"<w:p><w:r><w:t>{'x' * 61000}</w:t></w:r></w:p>"
+        content = make_docx(body)
         source = DocumentInput("report.docx", content, DocumentRole.REPORT)
     elif kind == "unreadable":
         source = DocumentInput("report.pdf", b"broken", DocumentRole.REPORT)
@@ -46,8 +45,6 @@ def test_criteria_archive_survives_report_check_ineligibility(setup, tmp_path, b
     role = prepare_role(source, PairRuntime(), monotonic() + 30)
     if kind == "characters":
         assert sum(len(block.raw_text) for block in role.view.document.blocks) > 60000
-    elif kind == "blocks":
-        assert len(role.view.document.blocks) > 500
     elif kind == "blank":
         assert not role.view.document.blocks
     elif kind == "partial":

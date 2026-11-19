@@ -14,7 +14,7 @@ from submission.document_contracts import (
     SourceId,
     SourceLocator,
 )
-from submission.models import FrozenModel, PdfInput
+from submission.models import MAX_DOCUMENT_PAGES, FrozenModel, PdfInput
 from submission.requirement_contracts import CitationInput
 
 
@@ -44,7 +44,7 @@ class EvidenceModel(FrozenModel):
 
 class EvidenceLimits(EvidenceModel):
     max_bytes: Annotated[int, Field(gt=0)] = 10 * 1024 * 1024
-    max_pages: Annotated[int, Field(gt=0)] = 50
+    max_pages: Annotated[int, Field(gt=0)] = MAX_DOCUMENT_PAGES
     max_characters: Annotated[int, Field(gt=0)] = 200_000
     max_candidates: Annotated[int, Field(gt=0)] = 1000
     max_claims: Annotated[int, Field(gt=0)] = 100
@@ -112,6 +112,7 @@ class BoundEvidenceMapping(EvidenceModel):
     candidates: tuple[tuple[ArtifactTextRange, ...], ...]
     reason_code: Literal[
         "exact_identity",
+        "ocr_page_only",
         "exact_anchor",
         "layout_whitespace_anchor",
         "repeated_anchor",

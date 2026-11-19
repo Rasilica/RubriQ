@@ -74,6 +74,7 @@ src/submission/compatibility_review.py
 src/submission/compatibility_runner.py
 src/submission/compound_documents.py
 src/submission/conversion_contracts.py
+src/submission/conversion_fields.py
 src/submission/conversion_fonts.py
 src/submission/conversion_images.py
 src/submission/conversion_opc.py
@@ -132,6 +133,10 @@ src/submission/library_store.py
 src/submission/library_validation.py
 src/submission/main.py
 src/submission/models.py
+src/submission/ocr_contracts.py
+src/submission/ocr_pipeline.py
+src/submission/ocr_rows.py
+src/submission/ocr_runner.py
 src/submission/ollama_client.py
 src/submission/ollama_contracts.py
 src/submission/ollama_routes.py
@@ -177,6 +182,7 @@ src/submission/review_logic.py
 src/submission/review_routes.py
 src/submission/review_store.py
 src/submission/semantic_archive.py
+src/submission/semantic_chunks.py
 src/submission/semantic_client.py
 src/submission/semantic_context.py
 src/submission/semantic_contracts.py
@@ -286,6 +292,7 @@ tests/test_conversion_concurrency.py
 tests/test_conversion_failures.py
 tests/test_conversion_fonts.py
 tests/test_conversion_opc.py
+tests/test_conversion_picture_fields.py
 tests/test_conversion_process.py
 tests/test_conversion_profile.py
 tests/test_current_criteria.py
@@ -304,6 +311,8 @@ tests/test_evidence_mapping_edges.py
 tests/test_evidence_page_count.py
 tests/test_expression.py
 tests/test_extraction.py
+tests/test_figure_blocks.py
+tests/test_figure_readers.py
 tests/test_format_containers.py
 tests/test_format_fixtures.py
 tests/test_formats.py
@@ -328,9 +337,13 @@ tests/test_library_bounds.py
 tests/test_library_routes.py
 tests/test_library_validation.py
 tests/test_malformed_parsers.py
+tests/test_ocr_pipeline.py
+tests/test_ocr_rows.py
+tests/test_ocr_runner.py
 tests/test_office_boundaries.py
 tests/test_ollama_client.py
 tests/test_ollama_routes.py
+tests/test_page_limit.py
 tests/test_page_rule_contracts.py
 tests/test_page_rule_evaluation.py
 tests/test_page_rule_parser.py
@@ -356,11 +369,14 @@ tests/test_report_check_demo.py
 tests/test_report_check_diagnostic_detail.py
 tests/test_report_check_expected_items.py
 tests/test_report_check_policy.py
+tests/test_report_check_server_identity.py
 tests/test_report_check_validation.py
 tests/test_requirement_draft.py
 tests/test_requirement_edges.py
+tests/test_requirement_failure_diagnostics.py
 tests/test_requirement_readers.py
 tests/test_requirement_schema.py
+tests/test_requirement_server_identity.py
 tests/test_requirement_validation.py
 tests/test_result_assets.py
 tests/test_result_rate_limit.py
@@ -371,6 +387,8 @@ tests/test_review_edges.py
 tests/test_samples.py
 tests/test_saved_ai.py
 tests/test_semantic_archive.py
+tests/test_semantic_chunk_routes.py
+tests/test_semantic_chunks.py
 tests/test_semantic_client.py
 tests/test_semantic_diagnostics.py
 tests/test_semantic_routes.py
@@ -380,6 +398,8 @@ tests/test_submission_check_demo.py
 tools/HwpNestedReader.java
 tools/HwpStructureWorker.java
 tools/MakeHwpNestedFixture.java
+tools/VisionOcr.swift
+tools/build_vision_ocr.py
 tools/export_public_source.py
 tools/generate_format_fixtures.py
 tools/generate_result_assets.py

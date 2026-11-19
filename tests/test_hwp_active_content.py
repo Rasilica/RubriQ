@@ -48,6 +48,7 @@ def test_linked_files_and_ole_objects_are_rejected(kind: int) -> None:
         field("%fmu", "=SUM(A1:A3)"),
         field("%hlk", "http\\://www.example.invalid;1;0;0;"),
         field("%hlk", "www.daum.net|-;1;0;0"),
+        field("%unk", "abcd/12345/1/1234567890/12345678/ko/\\;;"),
     ],
 )
 def test_inert_controls_and_safe_links_are_allowed(data: bytes) -> None:
@@ -61,6 +62,13 @@ def test_inert_controls_and_safe_links_are_allowed(data: bytes) -> None:
         field("%hlk", "file\\:///etc/passwd;1;0;0;"),
         field("%hlk", "../secret.hwp;1;0;0;"),
         field("%hlk", "C\\:\\\\Windows\\\\run.exe;1;0;0;"),
+        field("%unk", "https\\://example.invalid/a;;"),
+        field("%unk", "file:///etc/passwd"),
+        field("%unk", "../secret/a;;"),
+        field("%unk", "C\\:\\\\Windows\\\\run.exe"),
+        field("%unk", "abcd/secret.hwp;;"),
+        field("%unk", "abcd\\x"),
+        record(CTRL_HEADER, b"knu%" + bytes(5) + pack("<H", 50) + b"x"),
         record(CTRL_HEADER, b"klh%" + bytes(5) + pack("<H", 50) + b"x"),
     ],
 )

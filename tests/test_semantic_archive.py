@@ -45,7 +45,7 @@ def test_reopened_criteria_get_and_check_reuse_saved_draft_without_extraction(se
             assert current.semantic_state is None
         assert check(reopened_setup, draft).status_code == 200
         assert call.call_count == 1
-        assert "criteria_sha256" in json.loads(call.call_args.args[2])
+        assert "expected_items" in json.loads(call.call_args.args[2])
     with store.lease(reopened.identifier, reopened.token) as current:
         assert current.semantic_state.check is not None
         assert current.semantic_archive is None
@@ -257,7 +257,7 @@ def test_reopened_archive_deduplicates_and_counts_toward_session_limit(setup, tm
 def cited_response(request, instructions, raw, key):
     completion = provider_response(request, instructions, raw, key)
     data = json.loads(completion.suggestion)
-    if "criteria_sha256" in data:
+    if "reviewed_block_ids" in data:
         block = json.loads(raw)["blocks"][0]
         data["items"][0]["evidence"] = [
             {

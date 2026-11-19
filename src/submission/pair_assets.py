@@ -39,7 +39,7 @@ def validated_pdf(role: PreparedRole) -> bytes:
     return role.pdf
 
 
-def read_png(path: Path) -> bytes:
+def read_png(path: Path, max_edge: int = MAX_EDGE) -> bytes:
     descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     with os.fdopen(descriptor, "rb") as stream:
         details = os.fstat(stream.fileno())
@@ -53,7 +53,7 @@ def read_png(path: Path) -> bytes:
     ):
         raise PairError(PairErrorCode.UNAVAILABLE)
     width, height = struct.unpack(">II", content[16:24])
-    if not (0 < width <= MAX_EDGE and 0 < height <= MAX_EDGE):
+    if not (0 < width <= max_edge and 0 < height <= max_edge):
         raise PairError(PairErrorCode.UNAVAILABLE)
     return content
 
@@ -62,9 +62,21 @@ def render_page(role: PreparedRole, page: int, binary: Path | None) -> bytes:
     pdf = validated_pdf(role)
     if page < 1 or page > (role.view.preview_page_count or 0):
         raise PairError(PairErrorCode.NOT_FOUND)
+    return render_pdf_page(pdf, page, binary)
+
+
+def render_pdf_page(
+    pdf: bytes,
+    page: int,
+    binary: Path | None,
+    *,
+    max_edge: int = MAX_EDGE,
+    wait: bool = False,
+) -> bytes:
+    """Rasterize one PDF page; `wait` queues behind another render instead of failing busy."""
     if binary is None or not binary.is_absolute():
         raise PairError(PairErrorCode.UNAVAILABLE)
-    if not RASTER_LOCK.acquire(blocking=False):
+    if not RASTER_LOCK.acquire(blocking=wait):
         raise PairError(PairErrorCode.BUSY)
     try:
         with TemporaryDirectory(prefix="pair-page-") as temporary:
@@ -80,7 +92,7 @@ def render_page(role: PreparedRole, page: int, binary: Path | None) -> bytes:
                     str(page),
                     "-singlefile",
                     "-scale-to",
-                    str(MAX_EDGE),
+                    str(max_edge),
                     "-png",
                     str(source),
                     str(directory / "page"),
@@ -89,7 +101,7 @@ def render_page(role: PreparedRole, page: int, binary: Path | None) -> bytes:
                 monotonic() + 15.0,
                 1.0,
             )
-            return read_png(directory / "page.png")
+            return read_png(directory / "page.png", max_edge)
     except (OSError, ConversionError):
         raise PairError(PairErrorCode.UNAVAILABLE) from None
     finally:

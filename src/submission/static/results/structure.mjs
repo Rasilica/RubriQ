@@ -2,10 +2,11 @@ import {element,field,button,readingElement} from "/review-assets/primitives.mjs
 import {notice} from "./primitives.mjs";
 import {ROLES,quoteParts,blockChildren} from "./state.mjs";
 
-const KINDS={paragraph:"본문 문단",table_cell:"표 셀",footnote:"각주",header:"머리말",footer:"꼬리말",extraction_block:"추출 블록"};
+const KINDS={paragraph:"본문 문단",table_cell:"표 셀",footnote:"각주",header:"머리말",footer:"꼬리말",extraction_block:"추출 블록",figure:"그림",ocr_line:"글자 인식"};
+const kindLabel=(kind)=>KINDS[kind] ?? "내용";
 const STATUS={complete:"완료",partial:"부분 읽기",not_started:"미실행",failed:"실패",unsupported:"지원 범위 밖"};
-const DIAGNOSTICS={unsupported_element:"지원하지 않는 요소",unsupported_part:"지원하지 않는 영역",invalid_reference:"참조 미확인",invalid_structure:"구조 오류",empty_content:"읽은 내용 없음",parser_warning:"읽기 경고",extraction_error:"추출 오류",text_unavailable:"텍스트 미확인"};
-const MAPPING={ambiguous:"대응 후보가 여러 곳이어서 페이지를 확정할 수 없습니다.",unmapped:"변환 표현과 연결하지 못했습니다. 원본에 내용이 없다는 뜻이 아닙니다.",mismatch:"대응한 표현이 원본 인용과 일치하지 않아 페이지를 확정할 수 없습니다."};
+const DIAGNOSTICS={unsupported_element:"지원하지 않는 요소",figure_content_unread:"그림 내용 미확인",unsupported_part:"지원하지 않는 영역",invalid_reference:"참조 미확인",invalid_structure:"구조 오류",empty_content:"읽은 내용 없음",parser_warning:"읽기 경고",extraction_error:"추출 오류",text_unavailable:"텍스트 미확인",ocr_text_used:"글자 인식 사용(오류 가능)"};
+const MAPPING={ocr_page:"글자 인식 결과라 해당 쪽만 연결하며 문구 위치는 확인하지 않았습니다.",ambiguous:"대응 후보가 여러 곳이어서 페이지를 확정할 수 없습니다.",unmapped:"변환 표현과 연결하지 못했습니다. 원본에 내용이 없다는 뜻이 아닙니다.",mismatch:"대응한 표현이 원본 인용과 일치하지 않아 페이지를 확정할 수 없습니다."};
 
 function sourceDetails(document) {
   const details=element("details","stack");
@@ -18,7 +19,7 @@ function sourceDetails(document) {
   details.append(readingElement("p","muted","읽은 범위만 확인했습니다. 제외된 위치나 연결 실패는 원본 내용의 부재를 뜻하지 않습니다."),element("h3","",`경고 ${document.warnings.length}개 · 오류 ${document.typed_errors.length}개`));
   for(const issue of [...document.warnings,...document.typed_errors]) details.append(element("p","",`${DIAGNOSTICS[issue.code] ?? "문서 읽기 진단"}`),element("p","mono",issue.source_locator?.path ?? "문서 전체"));
   details.append(element("h3","",`구조 참조 ${(document.references ?? []).length}개`));
-  for(const reference of document.references ?? []) details.append(element("p","",`${KINDS[reference.kind]} · ${reference.status === "resolved" ? "연결됨" : "연결 미확인"}`),element("p","mono",`${reference.source_locator.path} → ${reference.target_locator?.path ?? "대상 미확인"}`));
+  for(const reference of document.references ?? []) details.append(element("p","",`${kindLabel(reference.kind)} · ${reference.status === "resolved" ? "연결됨" : "연결 미확인"}`),element("p","mono",`${reference.source_locator.path} → ${reference.target_locator?.path ?? "대상 미확인"}`));
   details.append(element("p","mono",document.source.filename),element("p","mono",`SHA-256 ${document.source.content_sha256}`));
   return details;
 }
@@ -46,16 +47,17 @@ function mappingExamples(scenarios,actions) {
 function blockText(block,citation,document,actions) {
   const section=element("section","stack result-section");
   section.id="readable-evidence";
-  section.append(element("h3","",`${KINDS[block.kind]} · 원본 페이지 미확인`),element("p","mono",`원본 위치 ${block.source_locator.path}`));
+  section.append(element("h3","",`${kindLabel(block.kind)} · 원본 페이지 미확인`),element("p","mono",`원본 위치 ${block.source_locator.path}`));
   const parent=document.blocks.find((candidate)=>candidate.block_id === block.parent_block_id);
-  if(parent) section.append(element("p","",`포함 영역: ${KINDS[parent.kind]}`));
+  if(parent) section.append(element("p","",`포함 영역: ${kindLabel(parent.kind)}`));
   if(block.source_fragment_index !== null && block.source_fragment_index !== undefined) section.append(element("p","",`원문 조각 ${block.source_fragment_index}`));
   if(block.raw_char_range) section.append(element("p","mono",`원문 Unicode 범위 [${block.raw_char_range.start}, ${block.raw_char_range.end}) · 끝 위치 제외`));
   if(!block.raw_text) {
     const children=blockChildren(document,block.block_id);
-    section.append(readingElement("p","muted",children.length ? "이 위치는 내용을 묶는 구조 영역입니다. 아래 하위 블록에서 원문을 확인하세요." : "이 구조 위치에서 읽은 텍스트가 없습니다. 원본 내용의 부재를 뜻하지 않습니다."));
-    for(const [index,child] of children.entries()) section.append(button(`하위 블록 ${index+1} · ${KINDS[child.kind]} 보기`,()=>actions.onBlock(child.block_id)));
+    section.append(readingElement("p","muted",block.kind === "figure" ? "원문에서 그림이 있는 위치입니다. 그림 내용은 읽지 못했습니다. 캡션이 있으면 아래 하위 블록에 문단으로 나옵니다." : children.length ? "이 위치는 내용을 묶는 구조 영역입니다. 아래 하위 블록에서 원문을 확인하세요." : "이 구조 위치에서 읽은 텍스트가 없습니다. 원본 내용의 부재를 뜻하지 않습니다."));
+    for(const [index,child] of children.entries()) section.append(button(`하위 블록 ${index+1} · ${kindLabel(child.kind)} 보기`,()=>actions.onBlock(child.block_id)));
   }
+  if(block.kind === "ocr_line") section.append(element("span","badge attention","글자 인식(오류 가능)"));
   const text=element("p","original-text");text.dataset.blockId=block.block_id;
   if(citation?.block_id === block.block_id) {
     const [before,quote,after]=quoteParts(block.raw_text,citation.char_range);
@@ -75,7 +77,7 @@ export function renderStructure(document,selection,actions,scenarios) {
     const bar=element("div","page-toolbar");
     const previous=button("이전 블록",()=>actions.onBlock(blocks[index-1].block_id));previous.disabled=index === 0;previous.id="previous-block";
     const next=button("다음 블록",()=>actions.onBlock(blocks[index+1].block_id));next.disabled=index === blocks.length-1;next.id="next-block";
-    bar.append(previous,field({id:"block-select",label:"원본 구조 위치",value:blocks[index].block_id,options:blocks.map((block,i)=>[block.block_id,`${i+1} / ${blocks.length} · ${KINDS[block.kind]}`]),onChange:actions.onBlock}),next);
+    bar.append(previous,field({id:"block-select",label:"원본 구조 위치",value:blocks[index].block_id,options:blocks.map((block,i)=>[block.block_id,`${i+1} / ${blocks.length} · ${kindLabel(block.kind)}`]),onChange:actions.onBlock}),next);
     panel.append(bar,blockText(blocks[index],selection.citations[selection.role],document,actions));
   } else panel.append(notice("읽을 수 있는 구조 블록이 없습니다. 처리 범위와 경고를 확인하세요."));
   panel.append(sourceDetails(document));
