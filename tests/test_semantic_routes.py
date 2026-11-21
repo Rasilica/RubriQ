@@ -532,9 +532,7 @@ def test_combined_block_budget_ignores_empty_blocks(setup):
                 "submission.semantic_service.CHECK_LIMITS",
                 CHECK_LIMITS.model_copy(update={"max_blocks": budget}),
             ),
-            patch(
-                "submission.semantic_service.complete", side_effect=provider_response
-            ) as call,
+            patch("submission.semantic_service.complete", side_effect=provider_response) as call,
         ):
             assert check(setup, draft).status_code == 200
             assert call.call_count == expected_calls

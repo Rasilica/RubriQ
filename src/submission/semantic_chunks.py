@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Final
 
 from submission import semantic_diagnostics as diagnostics
-from submission.document_contracts import CommonDocument
+from submission.document_contracts import CommonDocument, DocumentBlock
 from submission.report_check_binding import criteria_budget_size, validate_context_budget
 from submission.report_check_contracts import (
     Judgment,
@@ -88,7 +88,7 @@ def merge_judgment(judgments: Sequence[Judgment]) -> Judgment:
     return min(judgments, key=JUDGMENT_PRECEDENCE.index)
 
 
-def _with_blocks(document: CommonDocument, blocks: tuple) -> CommonDocument:
+def _with_blocks(document: CommonDocument, blocks: tuple[DocumentBlock, ...]) -> CommonDocument:
     return document.model_copy(update={"blocks": blocks})
 
 

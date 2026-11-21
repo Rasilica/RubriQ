@@ -109,7 +109,7 @@ def _merge_value_cells(
         return ordered
     value_x = median(ordered[i][-1].box[0] for i in labeled)
     owners = _assign_continuations(ordered, labeled, value_x, height)
-    merged = []
+    merged: list[list[OcrObservation]] = []
     for i, row in enumerate(ordered):
         if i in owners:
             continue

@@ -6,7 +6,9 @@ from submission.models import FrozenModel
 
 type HwpPath = Annotated[
     str,
-    Field(pattern=r"^BodyText/Section[0-9]+(?:/(?:paragraph|control|row|cell|char)\[[0-9]+\]|/textbox)*$"),
+    Field(
+        pattern=r"^BodyText/Section[0-9]+(?:/(?:paragraph|control|row|cell|char)\[[0-9]+\]|/textbox)*$"
+    ),
 ]
 
 

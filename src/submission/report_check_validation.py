@@ -1,7 +1,7 @@
 import hashlib
 import json
 from collections.abc import Sequence
-from typing import Final
+from typing import Final, cast
 
 from pydantic import ValidationError
 from pydantic_core import PydanticSerializationError
@@ -74,12 +74,13 @@ IDENTITY_KEYS: Final = (
 def _drop_identity(raw: str) -> str:
     """Old-style replies may still echo identity; the server's values replace them."""
     try:
-        value = json.loads(raw)
+        value = cast("object", json.loads(raw))
     except ValueError:
         return raw  # the strict validator reports the malformed JSON
     if not isinstance(value, dict):
         return raw
-    return json.dumps({k: v for k, v in value.items() if k not in IDENTITY_KEYS})
+    fields = cast("dict[str, object]", value)
+    return json.dumps({k: v for k, v in fields.items() if k not in IDENTITY_KEYS})
 
 
 def parse_response(
@@ -104,7 +105,9 @@ def parse_response(
         report_source_id=source.source_id,
         report_document_version_id=source.document_version_id,
         report_source_sha256=source.content_sha256,
-        **parsed.model_dump(),
+        schema_version=parsed.schema_version,
+        reviewed_block_ids=parsed.reviewed_block_ids,
+        items=parsed.items,
     )
 
 

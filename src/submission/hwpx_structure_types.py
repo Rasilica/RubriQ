@@ -96,7 +96,11 @@ class SourceContext:
         )
 
     def warning(
-        self, path: str, *, invalid: bool = False, code: str | None = None
+        self,
+        path: str,
+        *,
+        invalid: bool = False,
+        code: Literal["figure_content_unread"] | None = None,
     ) -> DocumentDiagnostic:
         return DocumentDiagnostic(
             code=code or ("invalid_structure" if invalid else "unsupported_element"),

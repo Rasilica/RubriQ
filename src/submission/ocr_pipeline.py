@@ -71,7 +71,7 @@ def build_blocks(
     document: CommonDocument, page: int, lines: tuple[OcrLine, ...]
 ) -> tuple[DocumentBlock, ...]:
     sha = document.source.content_sha256
-    blocks = []
+    blocks: list[DocumentBlock] = []
     for number, line in enumerate(lines, start=1):
         span = CharacterRange(start=0, end=len(line.text))
         blocks.append(
@@ -165,7 +165,9 @@ def apply_ocr(  # noqa: PLR0913
     pages = pages_to_read(document, page_count) if runtime.ocr is not None else ()
     if not pages:
         return OcrOutcome(document)
-    read = read_page or (lambda data, page, limit: recognize_page(data, page, runtime, limit))
+    read: PageReader = read_page or (
+        lambda data, page, limit: recognize_page(data, page, runtime, limit)
+    )
     warnings = (WARNING_PAGE_LIMIT,) if len(pages) > MAX_OCR_PAGES else ()
     found: dict[int, tuple[OcrLine, ...]] = {}
     for page in pages[:MAX_OCR_PAGES]:

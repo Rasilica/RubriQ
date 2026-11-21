@@ -14,8 +14,7 @@ from submission.semantic_wire import MAX_OUTPUT_BYTES, wire_document
 
 PROVIDER_TIMEOUT: Final = 180
 COMMON_INSTRUCTIONS: Final = (
-    " 응답은 코드 블록이나 설명 없이 JSON 객체 하나만 반환하세요. "
-    "response_schema_json을 따르세요. "
+    " 응답은 코드 블록이나 설명 없이 JSON 객체 하나만 반환하세요. response_schema_json을 따르세요. "
 )
 REFERENCE_INSTRUCTIONS: Final = (
     " reviewed_block_ids는 검토한 blocks의 bN ID이며 qN 인용 참조와 다릅니다. "

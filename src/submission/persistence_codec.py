@@ -52,7 +52,8 @@ def model_fields(value: BaseModel | PdfInput) -> Node:
             if value.model_fields_set - type(value).model_fields.keys() or value.model_extra:
                 raise PersistenceError(PersistenceErrorCode.INVALID_INPUT)
             omitted = value.omitted_fields() if isinstance(value, OptionalFieldsModel) else ()
-            fields = {k: v for k, v in value.__dict__.items() if k not in omitted}
+            stored: dict[str, object] = dict(value.__dict__)
+            fields = {k: v for k, v in stored.items() if k not in omitted}
             return NODE.validate_python(fields)
         case PdfInput():
             return {"filename": value.filename, "content": value.content, "role": value.role}

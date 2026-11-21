@@ -122,11 +122,12 @@ def validate_items(response: RequirementResponse, limits: RequirementLimits) -> 
 
 def validate_cited_text(value: CitedText[CitationInput], limits: RequirementLimits) -> None:
     longest_quote = max((len(cite.quote) for cite in value.citations), default=0)
-    for branch, count, limit in (
+    checks: tuple[tuple[diagnostics.ContractBranch, int, int], ...] = (
         ("requirement_text_length", len(value.description), limits.max_text_characters),
         ("requirement_citation_count", len(value.citations), limits.max_citations),
         ("requirement_quote_length", longest_quote, limits.max_quote_characters),
-    ):
+    )
+    for branch, count, limit in checks:
         if count > limit:
             raise response_failure(RequirementErrorCode.RESPONSE_LIMIT, branch, count, limit)
 

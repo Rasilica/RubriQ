@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Annotated, Any, ClassVar, Final, Literal, NewType, Self
+from typing import Annotated, ClassVar, Final, Literal, NewType, Self, cast
 
 from pydantic import Field, SerializerFunctionWrapHandler, model_serializer, model_validator
 
@@ -170,10 +170,10 @@ class RequestBlock(FrozenModel):
     kind: str | None = None  # set only for "figure"/"ocr" so every other block serializes as before
 
     @model_serializer(mode="wrap")
-    def _omit_empty_kind(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        data = handler(self)
+    def _omit_empty_kind(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data = cast("dict[str, object]", handler(self))
         if data.get("kind") is None:
-            data.pop("kind", None)
+            _ = data.pop("kind", None)
         return data
 
 

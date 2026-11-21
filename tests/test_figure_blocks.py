@@ -58,9 +58,7 @@ def test_requirement_request_sends_figure_with_kind_and_empty_text():
     guide = with_figure(guide_document())
     request = prepare_requirement_request(guide)
     figures = [json.loads(b.model_dump_json()) for b in request.blocks if b.kind]
-    assert figures == [
-        {"block_id": guide.blocks[1].block_id, "raw_text": "", "kind": "figure"}
-    ]
+    assert figures == [{"block_id": guide.blocks[1].block_id, "raw_text": "", "kind": "figure"}]
     assert len(request.blocks) == sent_block_count(guide)
 
 

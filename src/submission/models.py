@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Annotated, Any, ClassVar, Final, Literal, override
+from typing import Annotated, ClassVar, Final, Literal, cast, override
 
 from pydantic import (
     BaseModel,
@@ -28,13 +28,17 @@ class OptionalFieldsModel(FrozenModel):
 
     def omitted_fields(self) -> tuple[str, ...]:
         fields = type(self).model_fields
-        return tuple(k for k in self.omit_when_default if getattr(self, k) == fields[k].default)
+        return tuple(
+            k
+            for k in self.omit_when_default
+            if getattr(self, k) == cast("object", fields[k].default)
+        )
 
     @model_serializer(mode="wrap")
-    def _omit_defaults(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        data = handler(self)
+    def _omit_defaults(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data = cast("dict[str, object]", handler(self))
         for key in self.omitted_fields():
-            data.pop(key, None)
+            _ = data.pop(key, None)
         return data
 
 
