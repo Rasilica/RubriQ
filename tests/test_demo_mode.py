@@ -155,6 +155,8 @@ def test_demo_page_announces_that_no_ai_runs(demo):
 
     assert 'data-demo="true"' in page
     assert "실제 AI가 아닙니다" in page
+    assert "demo-banner" in page
+    assert "클라우드 AI" not in page
 
 
 def test_environment_variable_selects_demo(monkeypatch):

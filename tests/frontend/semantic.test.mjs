@@ -49,6 +49,7 @@ function harness(api={},active=session,keyStatus,demo=false){
    set id(value){this.nodeId=value;nodes.set(value,this);},get id(){return this.nodeId;},
    append(...children){this.children.push(...children);},replaceChildren(...children){this.children=[...children];},setAttribute(name,value){this.attributes[name]=value;},
    querySelector(tag){return this.children.find(child=>child.tag===tag);},querySelectorAll(tags){return this.children.flatMap(child=>[...(tags.split(',').includes(child.tag)?[child]:[]),...child.querySelectorAll(tags)]);},
+   scrollIntoView(){this.revealed=true;},focus(){this.focused=true;},
    addEventListener(name,fn){listeners.set(name,[...(listeners.get(name)??[]),fn]);},emit(name){for(const fn of listeners.get(name)??[])fn();},click(){if(!this.disabled)this.emit('click');}
   };return node;
  }
@@ -373,4 +374,18 @@ test('demo option is absent in real mode and non-sample documents get a plain ex
  assert.equal(harness().get('semantic-provider').options.some(o=>o[0]==='demo'),false);
  const h=harness({aiRequirements:async()=>{throw {status:422,code:'ai_demo_sample_only'};}},session,undefined,true);
  h.click('semantic-requirements-preview');h.consent();h.click('semantic-submit');await tick();assert.match(h.contents(h.get('semantic-status')),/동봉한 샘플 문서만/);
+});
+test('preview brings the consent box into view and a rejected confirmation brings its notice into view',async()=>{
+ const h=harness({aiRequirements:async()=>structuredClone(draft),aiCriteria:async()=>{throw {status:422,code:'application_undetermined'};}});
+ h.fill();h.click('semantic-requirements-preview');
+ assert.equal(h.get('semantic-consent').revealed,true);assert.equal(h.get('semantic-consent').focused,true);
+ assert.notEqual(h.get('semantic-status').children[0].revealed,true);
+ h.consent();h.click('semantic-submit');await tick();h.click('semantic-confirm');await tick();
+ const notice=h.get('semantic-status').children[0];assert.equal(notice.revealed,true);assert.equal(notice.focused,true);
+});
+test('demo panel wording does not describe sending text to an AI',()=>{
+ const h=harness({},session,undefined,true);h.click('semantic-requirements-preview');
+ const text=h.contents(h.mounted.panel);
+ for(const claim of [/AI로 보낼/,/AI 실행/,/AI 요구사항 검사/,/시스템 지침을 사용/])assert.doesNotMatch(text,claim);
+ assert.match(text,/어디에도 전송하지 않습니다/);assert.equal(h.get('semantic-submit').textContent,'저장된 예시 결과 보기');
 });

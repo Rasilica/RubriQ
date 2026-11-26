@@ -83,11 +83,15 @@ def pair_error_status(code: PairErrorCode) -> int:
 
 def demo_page(page: bytes) -> bytes:
     banner = (
-        '<p class="notice" role="note"><strong>체험 모드</strong> · 동봉한 샘플 문서만 검사합니다. '
+        '<p class="demo-banner" role="note"><strong>체험 모드</strong> · '
+        "동봉한 샘플 문서만 검사합니다. "
         "AI 단계의 결과는 미리 저장한 예시이며 실제 AI가 아닙니다.</p>"
     )
     marked = page.replace(
         b'<body class="prepare-brand">', b'<body class="prepare-brand" data-demo="true">'
+    ).replace(
+        "클라우드 AI 기능은 별도 동의 후 표시한 텍스트를 외부로 전송합니다.".encode(),
+        "체험 모드는 문서를 외부로 전송하지 않습니다.".encode(),
     )
     return marked.replace(b"</header>", b"</header>" + banner.encode())
 

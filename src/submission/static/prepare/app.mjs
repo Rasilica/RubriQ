@@ -7,10 +7,10 @@ import {mountLibrary} from './library.mjs';
 import {environmentText} from './library-api.mjs';
 import {createExpressionCheck,expressionSelection,textareaRange} from './expression.mjs';
 import {createOllamaRequest,ollamaSelection,validateOllamaModels,validateOllamaRewrite} from './ollama.mjs';
-import {ROLES,STATUS,KINDS,createResources,initialSelection,selectBlock,selectPage,unicodeRange,mappingMatches,warningText,errorText as preparationErrorText} from './state.mjs';
+import {ROLES,STATUS,KINDS,createResources,initialSelection,selectBlock,selectPage,unicodeRange,mappingMatches,warningText,errorText as preparationErrorText,reveal} from './state.mjs';
 import {renderMappingResult} from './mapping.mjs';
 const LOW_OCR_CONFIDENCE=0.5;
-import {STEPS,reachableStep,clampStep} from './wizard.mjs';
+import {STEPS,reachableStep,clampStep,stepHelp,pageTitle} from './wizard.mjs';
 import {locationLabel,omittedSummary} from './location.mjs';
 import {resultCounts} from './semantic-view.mjs';
 import {statTile} from '/brand-assets/stats.mjs';
@@ -58,7 +58,7 @@ function renderSteps(){
     const row=element('li','');row.append(control);return row;
   }));
   const current=STEPS[step-1];
-  document.querySelector('#step-heading').replaceChildren(element('p','eyebrow',`${step}단계 / ${STEPS.length}단계`),element('h2','',current.label),element('p','muted',current.help));
+  document.querySelector('#step-heading').replaceChildren(element('p','eyebrow',`${step}단계 / ${STEPS.length}단계`),element('h2','',current.label),element('p','muted',stepHelp(step,demo)));document.title=pageTitle(step);
   const footer=document.querySelector('#step-footer');footer.replaceChildren();if(!session)return;
   if(returnStep){footer.append(button(`${STEPS[returnStep-1].label}(으)로 돌아가기`,()=>{const back=returnStep;returnStep=null;setStep(back);}));return;}
   if(step>1)footer.append(button(`이전: ${STEPS[step-2].label}`,()=>setStep(step-1)));
@@ -89,7 +89,9 @@ function errorText(error){
   if(error?.status===409)return '문서가 처리 중이거나 요청한 PDF를 준비하지 못했습니다. 잠시 후 다시 시도해주세요.';
   return '요청을 완료하지 못했습니다. 파일과 연결을 확인한 뒤 다시 시도해주세요.';
 }
-function showError(error,target=message){target.replaceChildren(notice(errorText(error),true));if(error?.status===404)clearSession('세션이 만료되었습니다. 문서를 다시 준비해주세요.');}
+// The page-level message sits above the form, so move there when it reports a problem.
+function alertMessage(text){const node=notice(text,true);node.tabIndex=-1;message.replaceChildren(node);reveal(node);}
+function showError(error,target=message){if(target===message)alertMessage(errorText(error));else target.replaceChildren(notice(errorText(error),true));if(error?.status===404)clearSession('세션이 만료되었습니다. 문서를 다시 준비해주세요.');}
 function busy(value){preparing=value;for(const control of form.elements)control.disabled=value;document.querySelector('#prepare-submit').textContent=value?'문서 준비 중…':'문서 준비하기';document.querySelector('#prepare-status').textContent=value?'구조 읽기와 PDF 준비 중입니다. 최대 3분이 걸릴 수 있습니다.':'';
   if(session)return;
   if(value){structure.replaceChildren(skeleton());viewer.replaceChildren(skeleton([48,32]));}
@@ -121,10 +123,10 @@ async function removeSession(){
 }
 form.addEventListener('submit',async event=>{
   event.preventDefault();if(!form.reportValidity())return;
-  if(session){message.replaceChildren(notice('새 문서를 준비하려면 먼저 현재 임시 문서를 삭제해주세요.',true));return;}
+  if(session){alertMessage('새 문서를 준비하려면 먼저 현재 임시 문서를 삭제해주세요.');return;}
   const files=['guide-file','report-file'].map(id=>document.getElementById(id).files[0]);
-  if(files.some(file=>!file)){message.replaceChildren(notice('안내문과 보고서 파일을 모두 선택해주세요.',true));return;}
-  if(files.some(file=>file.size>10*1024*1024)){message.replaceChildren(notice('각 파일은 10 MiB 이하여야 합니다.',true));return;}
+  if(files.some(file=>!file)){alertMessage('안내문과 보고서 파일을 모두 선택해주세요.');return;}
+  if(files.some(file=>file.size>10*1024*1024)){alertMessage('각 파일은 10 MiB 이하여야 합니다.');return;}
   const payload=new FormData(form);resources.clear();const request=resources.begin('prepare');busy(true);message.replaceChildren();
   try{
     const prepared=await api.prepare(payload,request.signal);if(!resources.current(request))return;

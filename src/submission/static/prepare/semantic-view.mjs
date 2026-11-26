@@ -20,8 +20,8 @@ export function resultCounts(items){
   const count=(...judgments)=>applicable.filter(item=>judgments.includes(item.judgment)).length;
   return {attention:applicable.filter(item=>item.judgment!=='evidence_found').length,found:count('evidence_found'),missing:count('evidence_missing'),deferred:count('deferred','partially_satisfied',null),total:applicable.length};
 }
-export function renderTransmission({ui,target,context,session}){
-  const {element}=ui;target.replaceChildren(element('h3','','실행 전 범위 확인'),element('p','',`${PROVIDERS[context.provider]} · ${context.model} · 총 ${context.characters.toLocaleString('ko-KR')}자`),element('p','muted','아래의 읽은 원문과 시스템 지침을 사용합니다. 파일·이미지 자체는 보내지 않습니다. AI 판단은 누락되거나 틀릴 수 있습니다.'));
+export function renderTransmission({ui,target,context,session,demo=false}){
+  const {element}=ui;target.replaceChildren(element('h3','','실행 전 범위 확인'),element('p','',`${PROVIDERS[context.provider]} · ${context.model} · 총 ${context.characters.toLocaleString('ko-KR')}자`),element('p','muted',demo?'아래는 검사에 사용하는 원문입니다. 체험 모드에서는 어디에도 전송하지 않습니다.':'아래의 읽은 원문과 시스템 지침을 사용합니다. 파일·이미지 자체는 보내지 않습니다. AI 판단은 누락되거나 틀릴 수 있습니다.'));
   if(context.characters>(context.stage==='check'?60000:20000))target.append(element('p','notice','문서가 길어 여러 번 나눠 전송합니다. 호출마다 비용이 발생합니다.'));
   if(context.criteria){target.append(criteriaList(element,'확정한 검사 기준 · 전체',context.criteria.map(c=>({title:c.title,parts:c.subconditions.map(sub=>sub.description),excluded:!c.included}))),criteriaList(element,'안내문에서 추출한 원래 요구사항 · 전체',context.original_requirements.map(r=>({title:r.title,parts:r.subconditions.map(sub=>sub.description)}))));}
   for(const [role,blocks] of Object.entries(context.blocks)){

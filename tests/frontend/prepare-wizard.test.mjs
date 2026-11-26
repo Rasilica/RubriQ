@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {STEPS,reachableStep,clampStep} from '../../src/submission/static/prepare/wizard.mjs';
+import {STEPS,reachableStep,clampStep,stepHelp,pageTitle} from '../../src/submission/static/prepare/wizard.mjs';
 import {locationLabel,omittedSummary} from '../../src/submission/static/prepare/location.mjs';
 
 test('steps follow the required order',()=>{
@@ -65,4 +65,10 @@ test('only unread content (pictures, formulas, tables, notes) is counted, never 
   assert.equal(omittedSummary(omitted),'그림 2개 · 각주·미주 1개');
   assert.equal(omittedSummary([]),'');
   assert.equal(omittedSummary(undefined),'');
+});
+test('tab title follows the step and demo help never claims that an AI works',()=>{
+  assert.equal(pageTitle(4),'요구사항 확정 | RubriQ');
+  assert.equal(stepHelp(3,false),STEPS[2].help);
+  for(const step of [3,5])assert.doesNotMatch(stepHelp(step,true),/AI가/);
+  assert.equal(stepHelp(4,true),STEPS[3].help);
 });

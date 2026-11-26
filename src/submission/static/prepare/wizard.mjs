@@ -8,6 +8,10 @@ export const STEPS=Object.freeze([
   {id:6,label:'결과·보관',help:'항목별 결과와 근거를 확인하고 문서를 보관합니다.'},
 ]);
 
+const DEMO_HELP={3:'미리 저장한 예시 요구사항을 보여줍니다.',5:'확정한 기준으로 미리 저장한 예시 결과를 보여줍니다.'};
+export const stepHelp=(step,demo)=>(demo&&DEMO_HELP[step])||STEPS[step-1].help;
+export const pageTitle=step=>`${STEPS[step-1].label} | RubriQ`;
+
 export function reachableStep(progress){
   if(!progress?.prepared)return 1;
   if(!progress.draft)return 3;

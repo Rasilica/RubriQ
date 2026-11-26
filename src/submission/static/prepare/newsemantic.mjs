@@ -2,6 +2,7 @@ import {credentialChoice,keyStatusText} from './ai-settings.mjs';
 import {diagnosticMessage} from './ai-diagnostic.mjs';
 import {renderCriteria,renderSemanticResults,renderTransmission,renderSemanticArchive} from './semantic-view.mjs';
 import {validateOllamaModels} from './ollama.mjs';
+import {reveal} from './state.mjs';
 export const PROVIDERS={gemini:'Gemini',openai:'OpenAI (GPT)',anthropic:'Anthropic (Claude)',billingai:'빌링AI',ollama:'Ollama · 로컬',demo:'체험 모드 · 저장된 예시'};
 const keyless=provider=>provider==='ollama'||provider==='demo';
 const DEMO_MODEL='offline-example';
@@ -61,12 +62,12 @@ export function validateSemanticArchive(archive,session){
 export function mountSemanticPanel({ui,api,session,onEvidence,onComplete,onExpired,keyStatus,onSaveState,onProgress,demo=false}){
   const {element,button,field}=ui;let draft,preview,dirty=false,running=false,confirming=false,disposed=false,epoch=0,controller;const abort=()=>{epoch++;controller?.abort();running=false;confirming=false;};
   const panel=element('section','panel stack semantic-panel');panel.id='semantic-panel';panel.setAttribute('aria-labelledby','semantic-heading');
-  const heading=element('h2','','AI 요구사항 검사');heading.id='semantic-heading';
+  const heading=element('h2','',demo?'요구사항 검사 · 체험':'AI 요구사항 검사');heading.id='semantic-heading';
   const status=element('div','stack');status.id='semantic-status';status.setAttribute('aria-live','polite');
   const transmission=element('div','stack');transmission.id='semantic-preview';
   const archived=element('div','stack');archived.id='semantic-archive';
   const editor=element('div','stack');editor.id='semantic-criteria';const results=element('div','stack');results.id='semantic-results';
-  const say=(text,error=false)=>{const n=element('p',`notice${error?' error':''}`,text);n.setAttribute('role',error?'alert':'status');status.replaceChildren(n);};
+  const say=(text,error=false)=>{const n=element('p',`notice${error?' error':''}`,text);n.setAttribute('role',error?'alert':'status');status.replaceChildren(n);if(error){n.setAttribute('tabindex','-1');reveal(n);}};
   const providerField=field({id:'semantic-provider',label:'AI 제공자',options:[['','제공자 선택'],...Object.entries(PROVIDERS).filter(([id])=>(id==='demo')===demo)],onChange:()=>{key.value='';invalidate();keyField.hidden=keyless(provider.value);billingHelp.hidden=provider.value!=='billingai';discover.hidden=provider.value!=='ollama';models.replaceChildren();}});const provider=providerField.querySelector('select');
   const billingHelp=element('p','muted','빌링AI에서 발급한 API 키와 접두어 없는 모델 ID(예: gpt-5-4, claude-sonnet-4-6, gemini-2-5-flash)를 입력하세요. 빌링AI와 선택한 모델의 실제 제공자에게 표시한 범위가 전송되며 크레딧이 차감될 수 있습니다. 직접 입력한 키는 요청 직후 비웁니다. ');billingHelp.id='semantic-billing-help';billingHelp.hidden=true;
   const billingDocs=element('a','','빌링AI 모델·요금 문서');billingDocs.href='https://billing-ai.doublezero.kr/docs/text';billingDocs.target='_blank';billingDocs.rel='noopener noreferrer';billingHelp.append(billingDocs);
@@ -81,11 +82,11 @@ export function mountSemanticPanel({ui,api,session,onEvidence,onComplete,onExpir
     finally{if(epoch===current){running=false;controls();}}
   });discover.id='semantic-models-button';discover.hidden=true;
   const consentLabel=element('label','cluster');const consent=element('input');consent.id='semantic-consent';consent.type='checkbox';consentLabel.htmlFor=consent.id;const consentText=element('span');consentLabel.append(consent,consentText);consent.addEventListener('change',controls);
-  const first=button('안내문에서 AI로 보낼 내용 미리보기',()=>makePreview('requirements'));first.id='semantic-requirements-preview';
+  const first=button(demo?'안내문에서 사용할 내용 미리보기':'안내문에서 AI로 보낼 내용 미리보기',()=>makePreview('requirements'));first.id='semantic-requirements-preview';
   const resume=button('저장한 기준으로 새 검사 준비',()=>resumeCriteria());resume.id='semantic-resume';resume.hidden=true;
   const confirm=button('수정한 요구사항 확인·확정',()=>confirmCriteria());confirm.id='semantic-confirm';
-  const second=button('보고서 검사에 보낼 내용 미리보기',()=>makePreview('check'));second.id='semantic-check-preview';
-  const submit=button('동의한 범위로 AI 실행',()=>run());submit.id='semantic-submit';
+  const second=button(demo?'보고서 검사에 사용할 내용 미리보기':'보고서 검사에 보낼 내용 미리보기',()=>makePreview('check'));second.id='semantic-check-preview';
+  const submit=button(demo?'저장된 예시 결과 보기':'동의한 범위로 AI 실행',()=>run());submit.id='semantic-submit';
   function controls(){
     savedStatus.textContent=keyStatusText(provider.value,keyStatus);
     for(const control of [provider,model,key,discover,first,resume,confirm,second,submit,consent])control.disabled=disposed||running;
@@ -103,7 +104,7 @@ export function mountSemanticPanel({ui,api,session,onEvidence,onComplete,onExpir
   function makePreview(stage){
     invalidate();try{const credentials=credentialChoice(provider.value,key.value,keyStatus);preview={...semanticPreview({session,provider:provider.value,model:model.value.trim(),stage,draft}),useSavedKey:credentials.useSavedKey};
       consentText.textContent=provider.value==='demo'?'실제 AI를 호출하지 않고, 미리 저장한 예시 결과를 보여주는 것을 확인합니다.':provider.value==='ollama'?'표시한 범위와 시스템 지침을 이 컴퓨터의 Ollama에서 실행하는 것을 확인합니다.':provider.value==='billingai'?'표시한 범위와 시스템 지침을 빌링AI 및 선택한 모델의 실제 제공자에게 전송하며, 크레딧이 차감될 수 있습니다. 이에 동의합니다.':'표시한 범위와 시스템 지침을 선택한 외부 제공자에게 전송하며, 비용이 발생할 수 있습니다. 이에 동의합니다.';
-      renderTransmission({ui,target:transmission,context:preview,session});transmission.append(consentLabel);say('범위를 확인한 뒤 실행에 동의해주세요.');controls();
+      renderTransmission({ui,target:transmission,context:preview,session,demo});transmission.append(consentLabel);say('범위를 확인한 뒤 실행에 동의해주세요.');controls();reveal(consent);
     }catch{say('제공자·모델 ID·API 키와 문서를 확인해주세요. 키는 공백 없는 ASCII 문자 512자까지입니다. 안내문이 20,000자를 넘으면 요구사항 추출을 최대 3회, 검사 입력(안내문·보고서·검사 기준 합계)이 60,000자를 넘으면 검사를 최대 5회로 나눠 보냅니다. 한 문단이나 셀이 한도보다 길면 보낼 수 없고 문서를 잘라 보내지 않습니다.',true);}
   }
   function failure(error,confirmation=false){

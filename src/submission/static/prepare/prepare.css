@@ -85,7 +85,11 @@ input[type=file]::file-selector-button:hover {background:var(--wash);}
 .prepare-brand .panel.paper {background:var(--brand-surface);box-shadow:inset 0 0 0 1px var(--brand-line);border-radius:var(--brand-radius-panel);}
 .prepare-brand .preparation-scope {border-radius:var(--brand-radius-panel);background:var(--brand-tray);padding:var(--s4) var(--s5);}
 .prepare-brand .upload-card {border-radius:var(--brand-radius-panel);background:var(--brand-surface);border:0;padding:var(--s5);}
-.prepare-brand .file-step {color:var(--brand-blue);}
+.prepare-brand .file-step {color:var(--ink);}
+/* Demo banner stays visible while scrolling; fixed colours keep contrast in both themes. */
+.demo-banner {position:sticky;top:0;z-index:20;margin:var(--s3) var(--prepare-page-gutter) 0;padding:var(--s3) var(--s4);border:2px solid #8a5a00;border-radius:var(--brand-radius-panel);background:#fff2cc;color:#3d2900;}
+html:has(.demo-banner) {scroll-padding-top:6rem;}
+@media(max-width:40rem) {html:has(.demo-banner) {scroll-padding-top:9rem;}}
 .prepare-brand .button,.prepare-brand input[type=file]::file-selector-button {border-radius:var(--brand-pill);}
 .prepare-brand .button.primary {background:var(--brand-blue);border-color:var(--brand-blue);color:var(--on-accent);padding-inline:var(--s6);}
 .prepare-brand .button.primary:hover {background:var(--accent-hover);border-color:var(--accent-hover);}

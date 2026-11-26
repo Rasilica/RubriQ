@@ -1,4 +1,6 @@
 export const ROLES={guide:'안내문',report:'보고서'};
+// Move keyboard focus and the viewport to something the user must see or act on next.
+export function reveal(node){node.focus?.({preventScroll:true});node.scrollIntoView?.({block:'center'});}
 export const STATUS={complete:'완료',partial:'부분 읽기',failed:'실패',unsupported:'지원 범위 밖',not_started:'미실행'};
 export const KINDS={extraction_block:'추출문',paragraph:'문단',table_cell:'표 셀',footnote:'각주',header:'머리말',footer:'꼬리말',figure:'그림',ocr_line:'글자 인식'};
 const WARNINGS={
