@@ -79,11 +79,14 @@ def install_semantic_routes(
     store: PairStore,
     quota: ResultRateLimit | None = None,
     credential_store: CredentialStore | None = None,
+    *,
+    demo: bool = False,
 ) -> None:
     service = SemanticService(
         store,
         quota or ResultRateLimit(router, ResultRatePolicy(requests=10)),
         credential_store if credential_store is not None else KeyringStore(),
+        demo,
     )
 
     @router.post("/{session_id}/ai/requirements", response_model=PairEnvelope[DraftView])

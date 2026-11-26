@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from submission.conversion_contracts import ConversionError, ConversionErrorCode
 from submission.conversion_process import run_process
 from submission.document_contracts import ProcessingStatus
+from submission.file_flags import READ_FLAGS
 from submission.input_contracts import DocumentInput
 from submission.models import FrozenModel
 from submission.pair_contracts import PairError, PairErrorCode, PairRuntime, PreparedRole, RoleView
@@ -33,7 +34,7 @@ class PairJobResult(FrozenModel):
 
 
 def bounded_file(path: Path, maximum: int) -> bytes:
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    descriptor = os.open(path, READ_FLAGS)
     with os.fdopen(descriptor, "rb") as stream:
         info = os.fstat(stream.fileno())
         if not stat.S_ISREG(info.st_mode) or info.st_size > maximum:
@@ -137,7 +138,7 @@ def run_preparation(
                 runtime=runtime,
                 deadline=deadline,
             )
-            _ = (directory / "job.json").write_text(job.model_dump_json())
+            _ = (directory / "job.json").write_text(job.model_dump_json(), encoding="utf-8")
             try:
                 _ = run_process(
                     (sys.executable, "-m", "submission.pair_worker", str(directory)),

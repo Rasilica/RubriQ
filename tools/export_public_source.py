@@ -30,6 +30,8 @@ ROOT_FILES: Final = frozenset(
         "uv.lock",
         ".gitignore",
         ".gitattributes",
+        "RubriQ실행.bat",
+        "사용설명서.txt",
     }
 )
 

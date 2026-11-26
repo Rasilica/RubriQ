@@ -11,14 +11,27 @@ dependencies = [
   "fastapi>=0.121,<1",
   "keyring>=25.6,<26",
   "olefile>=0.47,<0.48",
+  "pillow>=11 ; sys_platform == 'win32'",
   "pydantic>=2.12,<3",
   "pypdf>=6.19,<7",
+  "pypdfium2>=4.30,<6 ; sys_platform == 'win32'",
   "python-multipart>=0.0.20,<1",
   "uvicorn>=0.38,<1",
 ]
 
 [dependency-groups]
-dev = ["basedpyright>=1.31", "httpx2>=2,<3", "pytest>=9,<10", "pytest-cov>=7,<8", "reportlab>=4.4,<5", "ruff>=0.14,<1", "types-defusedxml", "types-olefile"]
+dev = [
+    "basedpyright>=1.31",
+    "httpx2>=2,<3",
+    "pillow>=11",
+    "pypdfium2>=4.30,<6",
+    "pytest>=9,<10",
+    "pytest-cov>=7,<8",
+    "reportlab>=4.4,<5",
+    "ruff>=0.14,<1",
+    "types-defusedxml",
+    "types-olefile",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

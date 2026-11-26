@@ -4,6 +4,15 @@
 LICENSE
 NOTICE
 README.md
+RubriQ실행.bat
+사용설명서.txt
+src/submission/demo_ai.py
+src/submission/file_flags.py
+src/submission/pdfium_page.py
+tests/test_demo_mode.py
+tests/test_launcher.py
+tests/test_windows_support.py
+tools/launcher.py
 THIRD_PARTY_NOTICES.md
 docs/AI_SETTINGS.md
 docs/BILLING_AI.md

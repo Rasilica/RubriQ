@@ -9,6 +9,7 @@ from pydantic import SecretStr
 from submission import semantic_diagnostics as diagnostics
 from submission.cloud_contracts import CloudCode, CloudError, TextCompletion, Usage
 from submission.credentials import CredentialStore, KeyringStore, resolve_key
+from submission.demo_ai import check_answer, requirements_answer
 from submission.document_contracts import CommonDocument
 from submission.pair_store import PairStore, Session
 from submission.report_check_adapter import build_report_check, prepare_report_check_request
@@ -137,11 +138,14 @@ class SemanticService:
     store: PairStore
     quota: ResultRateLimit
     credential_store: CredentialStore = field(default_factory=KeyringStore)
+    demo: bool = False
 
     def admit(self, request: AIRequest, credentials: Credentials) -> SecretStr:
         if not request.consent:
             raise SemanticError(SemanticCode.CONSENT_REQUIRED)
-        if request.provider == "ollama":
+        if (request.provider == "demo") != self.demo:
+            raise SemanticError(SemanticCode.DEMO_MODE_MISMATCH)
+        if request.provider in ("ollama", "demo"):
             return credentials.key
         return resolve_key(
             request.provider,
@@ -189,8 +193,12 @@ class SemanticService:
                 prepare_requirement_request(c, limits=REQUIREMENT_LIMITS, target=share)
                 for c in chunks
             ]
-            completions = self.complete_all(
-                session, request, key, [(p.instructions, p.model_dump_json()) for p in prepared]
+            completions = (
+                (requirements_answer(guide),)
+                if self.demo
+                else self.complete_all(
+                    session, request, key, [(p.instructions, p.model_dump_json()) for p in prepared]
+                )
             )
             diagnostics.mark("report_validation", "report_contract_invalid")
             if len(chunks) == 1:
@@ -295,7 +303,11 @@ class SemanticService:
                 raise SemanticError(SemanticCode.SOURCE_MISMATCH, 409)
             chunks = check_chunk_contexts(ctx, CHECK_LIMITS)
             calls = [check_call(chunk, ctx.guide) for chunk in chunks]
-            completions = self.complete_all(session, request, key, calls)
+            completions = (
+                (check_answer(ctx),)
+                if self.demo
+                else self.complete_all(session, request, key, calls)
+            )
             diagnostics.mark("report_validation", "report_contract_invalid")
             if len(chunks) == 1:
                 suggestion, limits = completions[0].suggestion, CHECK_LIMITS

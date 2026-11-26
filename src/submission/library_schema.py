@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import stat
+import sys
 from collections.abc import Generator
 from contextlib import closing, contextmanager
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Final
 
 from pydantic import TypeAdapter, ValidationError
 
+from submission.file_flags import READ_FLAGS
 from submission.library_contracts import LibraryCode, LibraryError, LibraryLimits
 
 APPLICATION_ID: Final = 1112753714
@@ -17,19 +19,20 @@ def private_path(path: Path) -> None:
     if not path.is_absolute() or any(parent.is_symlink() for parent in (path, *path.parents)):
         raise LibraryError(LibraryCode.UNAVAILABLE)
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    directory = path.parent.stat()
-    if directory.st_uid != os.getuid() or directory.st_mode & 0o077:
+    if not owner_only(path.parent.stat()):
         raise LibraryError(LibraryCode.UNAVAILABLE)
-    descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+    descriptor = os.open(path, os.O_CREAT | os.O_RDWR | READ_FLAGS, 0o600)
     with os.fdopen(descriptor, "rb") as stream:
         details = os.fstat(stream.fileno())
-        if (
-            not stat.S_ISREG(details.st_mode)
-            or details.st_uid != os.getuid()
-            or details.st_mode & 0o077
-            or details.st_nlink != 1
-        ):
+        if not stat.S_ISREG(details.st_mode) or not owner_only(details) or details.st_nlink != 1:
             raise LibraryError(LibraryCode.UNAVAILABLE)
+
+
+def owner_only(details: os.stat_result) -> bool:
+    # shortcut: Windows has no POSIX owner or mode bits; the user profile ACL applies there.
+    if sys.platform == "win32":
+        return True
+    return details.st_uid == os.getuid() and not details.st_mode & 0o077
 
 
 def schema(connection: sqlite3.Connection) -> None:
