@@ -73,6 +73,9 @@ def complete(request: AIRequest, instructions: str, payload: str, key: SecretStr
                     max_tokens=8192,
                     timeout=PROVIDER_TIMEOUT,
                 )
+            case "demo":
+                # Demo answers come from demo_ai; a demo request must never reach a model.
+                raise CloudError(CloudCode.INVALID_RESPONSE, 502)
             case _:
                 assert_never(request.provider)
         diagnostics.usage(result.usage.input_tokens, result.usage.output_tokens)

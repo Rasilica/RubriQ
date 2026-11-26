@@ -32,6 +32,12 @@ class SemanticCode(StrEnum):
     SOURCE_MISMATCH = "ai_source_mismatch"
     INPUT_LIMIT = "ai_input_limit"
     SESSION_EXPIRING = "ai_session_expiring"
+    DEMO_SAMPLE_ONLY = "ai_demo_sample_only"
+    DEMO_MODE_MISMATCH = "ai_demo_mode_mismatch"
+
+
+# "demo" returns saved example answers; no model runs.
+type ProviderName = Provider | Literal["ollama", "demo"]
 
 
 class SemanticError(ValueError):
@@ -42,7 +48,7 @@ class SemanticError(ValueError):
 
 
 class AIRequest(FrozenModel):
-    provider: Provider | Literal["ollama"]
+    provider: ProviderName
     model: ModelName
     consent: Annotated[bool, Field(strict=True)] = False
     use_saved_key: Annotated[bool, Field(strict=True)] = False
@@ -76,7 +82,7 @@ class DraftView(FrozenModel):
     items: tuple[ReviewedItem, ...]
     criteria_sha256: str | None
     confirmed: bool
-    provider: Provider | Literal["ollama"]
+    provider: ProviderName
     model: str
     ai_called: Literal[True] = True
     semantic_accuracy_verified: Literal[False] = False
@@ -117,7 +123,7 @@ class LiveReportResult(FrozenModel):
 
 
 class CheckView(FrozenModel):
-    provider: Provider | Literal["ollama"]
+    provider: ProviderName
     model: str
     ai_called: Literal[True] = True
     result: LiveReportResult
@@ -126,7 +132,7 @@ class CheckView(FrozenModel):
 
 
 class SemanticState(FrozenModel):
-    provider: Provider | Literal["ollama"]
+    provider: ProviderName
     model: str
     review: ReviewSession
     usage: Usage

@@ -19,12 +19,13 @@ export function createKeyStatus(){
   }};
 }
 export function credentialChoice(provider,key,status){
-  if(provider==='ollama')return {useSavedKey:false,apiKey:undefined};
+  if(provider==='ollama'||provider==='demo')return {useSavedKey:false,apiKey:undefined};
   if(key){if(!validKey(key))throw new Error('invalid_key');return {useSavedKey:false,apiKey:key};}
   if(status?.configured(provider))return {useSavedKey:true,apiKey:undefined};throw new Error('key_required');
 }
 export function keyStatusText(provider,status){
   if(provider==='ollama')return 'Ollama는 API 키 없이 로컬에서 실행합니다.';
+  if(provider==='demo')return '체험 모드는 API 키가 필요 없습니다.';
   if(!Object.hasOwn(PROVIDERS,provider))return '제공자를 선택하면 저장된 키 상태가 표시됩니다.';
   return status?.configured(provider)?'저장된 키를 기본으로 사용합니다. 이번 요청에 다른 키를 쓰려면 아래에 입력하세요.':'저장된 키가 없거나 보안 저장소를 사용할 수 없습니다. 설정에서 저장하거나 이번 요청의 키를 입력하세요.';
 }

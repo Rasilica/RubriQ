@@ -42,7 +42,7 @@ test('semantic API uses local/session/key headers and criteria confirmation neve
 
 import {mountSemanticPanel} from '../../src/submission/static/prepare/newsemantic.mjs';
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-function harness(api={},active=session,keyStatus){
+function harness(api={},active=session,keyStatus,demo=false){
  const nodes=new Map(),events=[];
  function element(tag,className='',text=''){
   const listeners=new Map();const node={tag,className,textContent:text,value:'',checked:false,disabled:false,children:[],attributes:{},
@@ -54,7 +54,7 @@ function harness(api={},active=session,keyStatus){
  }
  const button=(label,action)=>{const n=element('button','',label);n.addEventListener('click',action);return n;};
  const field=({id,label,value='',options,onChange})=>{const n=element('div');const c=element(options?'select':'input');c.options=options;c.id=id;c.value=value;c.addEventListener(options?'change':'input',()=>onChange(c.value));n.append(element('label','',label),c);return n;};
- const mounted=mountSemanticPanel({ui:{element,button,field},api,keyStatus,session:active,onEvidence:value=>events.push(value),onComplete:value=>events.push(value),onExpired:()=>events.push('expired')});
+ const mounted=mountSemanticPanel({ui:{element,button,field},api,keyStatus,demo,session:active,onEvidence:value=>events.push(value),onComplete:value=>events.push(value),onExpired:()=>events.push('expired')});
  const get=id=>nodes.get(id),click=id=>get(id).click();const change=(id,value)=>{const n=get(id);n.value=value;n.emit(n.tag==='select'?'change':'input');};
  const fill=(provider='gemini')=>{change('semantic-provider',provider);change('semantic-model',provider==='ollama'?'qwen3:8b':'model');if(provider!=='ollama')change('semantic-api-key','secret-key');};
  const consent=()=>{get('semantic-consent').checked=true;get('semantic-consent').emit('change');};
@@ -361,4 +361,16 @@ for(const action of ['dispose','invalidate'])test(`saved-criteria pending GET ca
 });
 for(const status of [404,503])test(`saved-criteria free GET failure ${status} preserves archive`,async()=>{
  const confirmed={...draft,confirmed:true,criteria_sha256:hash};const h=harness({aiCurrentCriteria:async()=>{throw {status};}},{...session,semantic_archive:{draft:confirmed,check:null}});h.click('semantic-resume');await tick();assert.equal(h.get('semantic-check-preview').disabled,true);assert.ok(h.get('semantic-archive').children.length);if(status===404)assert.ok(h.events.includes('expired'));else assert.match(h.contents(h.get('semantic-status')),/저장한 기준/);
+});
+test('demo panel preselects the saved example, never asks for a key, and says no AI ran',async()=>{
+ let body,options;const h=harness({aiRequirements:async(_s,b,o)=>{body=b;options=o;return {...draft,provider:'demo',model:b.model};}},session,undefined,true);
+ assert.equal(h.get('semantic-provider').value,'demo');assert.equal(h.get('semantic-model').value,'offline-example');
+ assert.deepEqual(h.get('semantic-provider').options.map(o=>o[0]),['','demo']);
+ h.click('semantic-requirements-preview');assert.match(h.contents(h.get('semantic-preview')),/실제 AI를 호출하지 않고/);h.consent();h.click('semantic-submit');await tick();
+ assert.equal(body.provider,'demo');assert.equal(options.apiKey,undefined);assert.equal(h.get('semantic-confirm').disabled,false);
+});
+test('demo option is absent in real mode and non-sample documents get a plain explanation',async()=>{
+ assert.equal(harness().get('semantic-provider').options.some(o=>o[0]==='demo'),false);
+ const h=harness({aiRequirements:async()=>{throw {status:422,code:'ai_demo_sample_only'};}},session,undefined,true);
+ h.click('semantic-requirements-preview');h.consent();h.click('semantic-submit');await tick();assert.match(h.contents(h.get('semantic-status')),/동봉한 샘플 문서만/);
 });

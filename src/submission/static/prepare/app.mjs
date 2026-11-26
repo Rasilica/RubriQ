@@ -18,7 +18,8 @@ import {createPillTabs,createToaster,mountDropzone,skeleton,bloom} from '/brand-
 
 const api=createAPI();const resources=createResources();
 const settings=mountKeySettings({ui:{element,button,field}});const keyStatus=settings.status;
-document.querySelector('#ai-settings-container').append(settings.panel);
+const demo=document.body.dataset.demo==='true';
+if(!demo)document.querySelector('#ai-settings-container').append(settings.panel);
 const form=document.querySelector('#prepare-form');
 const workspace=document.querySelector('#prepared-workspace');
 const structure=document.querySelector('#structure-pane');const viewer=document.querySelector('#pdf-pane');
@@ -108,7 +109,7 @@ function activateSession(prepared){
   bar.replaceChildren(element('strong','',session.project_name),element('span','muted',`만료 ${new Date(session.expires_at).toLocaleTimeString('ko-KR')}`),save,button('임시 문서 삭제',removeSession),saveStatus);
   message.replaceChildren(...(prepared.saved_id?[notice('보관한 문서를 열었습니다. 저장한 요구사항과 AI 검사 기록이 있으면 해당 단계에서 볼 수 있고, 다시 열기에는 새 AI 호출이 없습니다.')]:[]));
   if(prepared.saved_id){const details=element('details','stack');details.append(element('summary','','저장 당시와 현재 환경'),element('p','',environmentText(prepared)));message.append(details);}
-  semanticPanel=mountSemanticPanel({ui:{element,button,field},api,keyStatus,session,onEvidence:semanticEvidence,onComplete:semanticStatus,onSaveState:state=>{save.disabled=!state.allowed;if(!state.allowed)saveStatus.replaceChildren(notice(state.reason));else if(saveStatus.dataset.blocked==='true')saveStatus.replaceChildren();saveStatus.dataset.blocked=String(!state.allowed);},onProgress:()=>progressChanged(),onExpired:()=>clearSession('세션이 만료되었습니다. 문서를 다시 준비해주세요.')});semanticContainer.replaceChildren(semanticPanel.panel);
+  semanticPanel=mountSemanticPanel({ui:{element,button,field},api,keyStatus,demo,session,onEvidence:semanticEvidence,onComplete:semanticStatus,onSaveState:state=>{save.disabled=!state.allowed;if(!state.allowed)saveStatus.replaceChildren(notice(state.reason));else if(saveStatus.dataset.blocked==='true')saveStatus.replaceChildren();saveStatus.dataset.blocked=String(!state.allowed);},onProgress:()=>progressChanged(),onExpired:()=>clearSession('세션이 만료되었습니다. 문서를 다시 준비해주세요.')});semanticContainer.replaceChildren(semanticPanel.panel);
   render();bloom(structure);bloom(viewer);toaster.push(prepared.saved_id?'보관한 문서를 열었습니다':'문서를 준비했습니다',prepared.project_name);
   reached=reachableStep(progress());setStep(prepared.saved_id?reached:2);
 }
@@ -176,7 +177,7 @@ function renderStructure(){
     selected.disabled=!block.raw_text||!entry.artifact_kind;whole.disabled=selected.disabled;
     actions.append(selected,whole);const result=element('div','stack');result.id='mapping-result';result.setAttribute('aria-live','polite');structure.append(actions,result);
     cloudPanel=mountCloudPanel({ui:{element,button,field},api,keyStatus,resources,session,role,doc,block,text});
-    const tools=element('details','stack extra-tools');tools.append(element('summary','','추가 도구 (선택) · 한국어 표현 점검과 윤문 제안'),expressionPanel(doc,block,text),ollamaPanel(doc,block,text),cloudPanel.panel);
+    const tools=element('details','stack extra-tools');tools.append(element('summary','','추가 도구 (선택) · 한국어 표현 점검과 윤문 제안'),expressionPanel(doc,block,text),...(demo?[]:[ollamaPanel(doc,block,text),cloudPanel.panel]));
     structure.append(tools);
   }else structure.append(notice('읽은 글자가 없습니다. PDF 미리보기와 아래의 읽은 범위를 확인하세요.'));
   structure.append(coverage(doc));

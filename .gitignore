@@ -6,6 +6,7 @@ __pycache__/
 htmlcov/
 .env
 tmp/
+.tools/
 
 # Local documents, credentials, databases, audit evidence and generated releases
 .env.*

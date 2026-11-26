@@ -1,6 +1,7 @@
 import os
 import stat
 import struct
+import sys
 from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -20,6 +21,7 @@ from submission.evidence_contracts import (
     PdfArtifactInput,
 )
 from submission.evidence_mapping import map_evidence
+from submission.file_flags import READ_FLAGS
 from submission.models import PdfInput
 from submission.pair_contracts import EvidenceSelection, PairError, PairErrorCode, PreparedRole
 from submission.requirement_contracts import CitationInput
@@ -40,7 +42,7 @@ def validated_pdf(role: PreparedRole) -> bytes:
 
 
 def read_png(path: Path, max_edge: int = MAX_EDGE) -> bytes:
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    descriptor = os.open(path, READ_FLAGS)
     with os.fdopen(descriptor, "rb") as stream:
         details = os.fstat(stream.fileno())
         if not stat.S_ISREG(details.st_mode) or details.st_size > IMAGE_LIMIT:
@@ -74,7 +76,8 @@ def render_pdf_page(
     wait: bool = False,
 ) -> bytes:
     """Rasterize one PDF page; `wait` queues behind another render instead of failing busy."""
-    if binary is None or not binary.is_absolute():
+    built_in = binary is None and sys.platform == "win32"
+    if not built_in and (binary is None or not binary.is_absolute()):
         raise PairError(PairErrorCode.UNAVAILABLE)
     if not RASTER_LOCK.acquire(blocking=wait):
         raise PairError(PairErrorCode.BUSY)
@@ -83,8 +86,19 @@ def render_pdf_page(
             directory = Path(temporary)
             source = directory / "source.pdf"
             _ = source.write_bytes(pdf)
-            _ = run_process(
+            target = directory / "page"
+            command = (
                 (
+                    sys.executable,
+                    "-m",
+                    "submission.pdfium_page",
+                    str(source),
+                    str(page),
+                    str(max_edge),
+                    f"{target}.png",
+                )
+                if built_in
+                else (
                     str(binary),
                     "-f",
                     str(page),
@@ -95,9 +109,12 @@ def render_pdf_page(
                     str(max_edge),
                     "-png",
                     str(source),
-                    str(directory / "page"),
-                ),
-                directory,
+                    str(target),
+                )
+            )
+            _ = run_process(
+                command,
+                Path(__file__).parents[1] if built_in else directory,
                 monotonic() + 15.0,
                 1.0,
             )

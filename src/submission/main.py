@@ -1,3 +1,4 @@
+import os
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from threading import Lock
@@ -44,6 +45,7 @@ def create_app(
     pair_runtime: PairRuntime | None = None,
     library_path: Path | None = None,
     credential_store: CredentialStore | None = None,
+    demo: bool | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="RubriQ · 문서 준비",
@@ -171,7 +173,11 @@ def create_app(
     install_review(app)
     install_results(app)
     install_pairs(
-        app, pair_runtime if pair_runtime is not None else load_runtime(), library_path, credentials
+        app,
+        pair_runtime if pair_runtime is not None else load_runtime(),
+        library_path,
+        credentials,
+        demo=os.environ.get("RUBRIQ_MODE") == "demo" if demo is None else demo,
     )
     return app
 

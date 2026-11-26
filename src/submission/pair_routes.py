@@ -81,11 +81,24 @@ def pair_error_status(code: PairErrorCode) -> int:
     }[code]
 
 
+def demo_page(page: bytes) -> bytes:
+    banner = (
+        '<p class="notice" role="note"><strong>체험 모드</strong> · 동봉한 샘플 문서만 검사합니다. '
+        "AI 단계의 결과는 미리 저장한 예시이며 실제 AI가 아닙니다.</p>"
+    )
+    marked = page.replace(
+        b'<body class="prepare-brand">', b'<body class="prepare-brand" data-demo="true">'
+    )
+    return marked.replace(b"</header>", b"</header>" + banner.encode())
+
+
 def install_pairs(
     app: FastAPI,
     runtime: PairRuntime,
     library_path: Path | None = None,
     credentials: CredentialStore | None = None,
+    *,
+    demo: bool = False,
 ) -> None:
     credentials = credentials if credentials is not None else KeyringStore()
     store = PairStore()
@@ -149,7 +162,7 @@ def install_pairs(
     install_ollama_routes(router, store)
     ai_quota = ResultRateLimit(router, ResultRatePolicy(requests=10))
     install_cloud_routes(router, store, ai_quota, credentials)
-    install_semantic_routes(router, store, ai_quota, credentials)
+    install_semantic_routes(router, store, ai_quota, credentials, demo=demo)
     install_session_routes(router, runtime, store)
     install_expression_routes(router, store)
     app.include_router(router)
@@ -159,7 +172,8 @@ def install_pairs(
 
     @app.get("/prepare", include_in_schema=False)
     def prepare_page() -> Response:
-        return Response((static / "index.html").read_bytes(), media_type="text/html")
+        page = (static / "index.html").read_bytes()
+        return Response(demo_page(page) if demo else page, media_type="text/html")
 
 
 def install_session_routes(router: APIRouter, runtime: PairRuntime, store: PairStore) -> None:

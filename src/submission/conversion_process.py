@@ -2,13 +2,15 @@ import os
 import selectors
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from tempfile import TemporaryFile
+from typing import IO, Final
 
 from submission.conversion_contracts import ConversionError, ConversionErrorCode
 
@@ -149,12 +151,56 @@ def wait_process(process: subprocess.Popen[bytes], deadline: float) -> None:
         return
 
 
+def check_output_size(streams: tuple[IO[bytes], ...]) -> None:
+    if sum(os.fstat(stream.fileno()).st_size for stream in streams) > OUTPUT_LIMIT:
+        raise ConversionError(ConversionErrorCode.PROCESS_OUTPUT_LIMIT)
+
+
+def run_windows_process(
+    arguments: tuple[str, ...], directory: Path, deadline: float, grace: float
+) -> bytes:
+    """Run one child with bounded output; Windows cannot select on pipes.
+
+    shortcut: only the direct child is stopped. Windows runs just the Python readers,
+    which start no further processes; use a Job Object before enabling converters there.
+    """
+    with owned_process(), TemporaryFile() as output, TemporaryFile() as errors:
+        try:
+            process = subprocess.Popen(  # noqa: S603 -- argv is built internally, without a shell.
+                arguments,
+                cwd=directory,
+                stdin=subprocess.DEVNULL,
+                stdout=output,
+                stderr=errors,
+            )
+        except OSError as error:
+            raise ConversionError(ConversionErrorCode.RENDERER_UNAVAILABLE) from error
+        try:
+            while process.poll() is None:
+                check_output_size((output, errors))
+                check_cancellation()
+                if time.monotonic() >= deadline:
+                    raise ConversionError(ConversionErrorCode.TIMEOUT)
+                time.sleep(0.02)
+            check_output_size((output, errors))
+            if process.returncode != 0:
+                raise ConversionError(ConversionErrorCode.RENDERER_FAILED)
+            _ = output.seek(0)
+            return output.read()
+        finally:
+            if process.poll() is None:
+                process.kill()
+                reap_process(process, grace)
+
+
 def run_process(
     arguments: tuple[str, ...], directory: Path, deadline: float, grace: float
 ) -> bytes:
     """Run one POSIX process group with bounded pipes and a shared job deadline."""
     if time.monotonic() >= deadline:
         raise ConversionError(ConversionErrorCode.TIMEOUT)
+    if sys.platform == "win32":
+        return run_windows_process(arguments, directory, deadline, grace)
     with owned_process():
         try:
             process = subprocess.Popen(  # noqa: S603 -- argv is built internally, without a shell.
